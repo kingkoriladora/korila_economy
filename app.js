@@ -38,6 +38,15 @@ const refreshMarketBtn = document.getElementById("refreshMarketBtn");
 const marketSort = document.getElementById("marketSort");
 const marketList = document.getElementById("marketList");
 
+const chatList = document.getElementById("chatList");
+const chatInput = document.getElementById("chatInput");
+const sendChatBtn = document.getElementById("sendChatBtn");
+const refreshChatBtn = document.getElementById("refreshChatBtn");
+const adminBanPanel = document.getElementById("adminBanPanel");
+const banTargetUserId = document.getElementById("banTargetUserId");
+const unbanChatBtn = document.getElementById("unbanChatBtn");
+const unbanGameBtn = document.getElementById("unbanGameBtn");
+
 const welcomeText = document.getElementById("welcomeText");
 const titleText = document.getElementById("titleText");
 const moneyText = document.getElementById("moneyText");
@@ -58,10 +67,20 @@ const refreshHistoryBtn = document.getElementById("refreshHistoryBtn");
 dailyLimitText.textContent = DAILY_GATHER_LIMIT;
 
 let uiLocked = false;
+let currentProfile = null;
 
 function msg(text, isError = false) {
   messageText.textContent = text;
   messageText.style.color = isError ? "#fca5a5" : "#bfdbfe";
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function showApp(show) {
@@ -115,11 +134,15 @@ function setButtonsDisabled(disabled) {
     buyWoodNpcBtn,
     buyStoneNpcBtn,
     buyIronNpcBtn,
+    sendChatBtn,
+    refreshChatBtn,
+    unbanChatBtn,
+    unbanGameBtn,
   ].forEach((btn) => {
     if (btn) btn.disabled = disabled;
   });
 
-  document.querySelectorAll(".buyBtn, .cancelBtn").forEach((btn) => {
+  document.querySelectorAll(".buyBtn, .cancelBtn, .chatDeleteBtn, .chatBanBtn").forEach((btn) => {
     btn.disabled = disabled;
   });
 }
@@ -221,10 +244,17 @@ async function refreshProfileUI() {
   const profile = await getProfile(user.id);
   const gatherCount = await getTodayGatherCount(user.id);
 
+  currentProfile = profile;
   welcomeText.textContent = `ようこそ、${profile.username}`;
   updateProfileUI(profile, gatherCount);
 
   updatePricesBtn.textContent = profile.is_admin ? "相場更新（管理者）" : "相場更新";
+
+  if (profile.is_admin) {
+    adminBanPanel.classList.remove("hidden");
+  } else {
+    adminBanPanel.classList.add("hidden");
+  }
 }
 
 function sortListings(listings) {
@@ -317,11 +347,13 @@ async function logout() {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
+      currentProfile = null;
       showApp(false);
       marketList.innerHTML = "";
       priceBoard.innerHTML = "";
       rankingList.innerHTML = "";
       historyList.innerHTML = "";
+      chatList.innerHTML = "";
       msg("ログアウトした");
     } catch (error) {
       console.error(error);
@@ -460,6 +492,7 @@ async function changeUsername() {
       newUsernameInput.value = "";
       await refreshProfileUI();
       await loadRankings();
+      await loadChat();
 
       msg(`ユーザー名を「${data.username}」に変更した。`);
     } catch (error) {
@@ -500,6 +533,195 @@ async function buyFromNpc(resource, quantity) {
   });
 }
 
+async function sendChatMessage() {
+  await runLocked(async () => {
+    try {
+      const text = chatInput.value.trim();
+
+      if (!text) {
+        msg("メッセージを入れて。", true);
+        return;
+      }
+
+      const { error } = await supabase.rpc("send_chat_message", {
+        p_message: text,
+      });
+
+      if (error) throw error;
+
+      chatInput.value = "";
+      await loadChat();
+      msg("チャットを送信した。");
+    } catch (error) {
+      console.error(error);
+      msg(error.message || "チャット送信エラー", true);
+    }
+  });
+}
+
+async function deleteChatMessage(messageId) {
+  await runLocked(async () => {
+    try {
+      const { error } = await supabase.rpc("delete_chat_message", {
+        p_message_id: messageId,
+      });
+
+      if (error) throw error;
+
+      await loadChat();
+      msg("チャットを削除した。");
+    } catch (error) {
+      console.error(error);
+      msg(error.message || "チャット削除エラー", true);
+    }
+  });
+}
+
+async function banUser(targetUserId, banType) {
+  await runLocked(async () => {
+    try {
+      const reason = window.prompt(`${banType === "chat" ? "チャットBAN" : "ゲームBAN"}の理由を入れて`);
+      if (!reason || !reason.trim()) {
+        msg("理由を入れて。", true);
+        return;
+      }
+
+      const minutesText = window.prompt("BAN時間（分）。永久なら空欄でOK");
+      const minutes = minutesText && minutesText.trim() !== "" ? Number(minutesText) : null;
+
+      if (minutes !== null && (!Number.isInteger(minutes) || minutes <= 0)) {
+        msg("分数を正しく入れて。", true);
+        return;
+      }
+
+      const { error } = await supabase.rpc("ban_user", {
+        p_target_user_id: targetUserId,
+        p_ban_type: banType,
+        p_reason: reason.trim(),
+        p_minutes: minutes,
+      });
+
+      if (error) throw error;
+
+      await loadChat();
+      msg(`${banType === "chat" ? "チャットBAN" : "ゲームBAN"}した。`);
+    } catch (error) {
+      console.error(error);
+      msg(error.message || "BANエラー", true);
+    }
+  });
+}
+
+async function unbanUser(banType) {
+  await runLocked(async () => {
+    try {
+      const targetUserId = banTargetUserId.value.trim();
+
+      if (!targetUserId) {
+        msg("解除する user_id を入れて。", true);
+        return;
+      }
+
+      const { error } = await supabase.rpc("unban_user", {
+        p_target_user_id: targetUserId,
+        p_ban_type: banType,
+      });
+
+      if (error) throw error;
+
+      msg(`${banType === "chat" ? "チャットBAN" : "ゲームBAN"}を解除した。`);
+    } catch (error) {
+      console.error(error);
+      msg(error.message || "BAN解除エラー", true);
+    }
+  });
+}
+
+async function loadChat() {
+  try {
+    if (!currentProfile) return;
+
+    let messages;
+    let error;
+
+    if (currentProfile.is_admin) {
+      const result = await supabase.rpc("get_chat_messages_admin");
+      messages = result.data;
+      error = result.error;
+    } else {
+      const result = await supabase.rpc("get_chat_messages");
+      messages = result.data;
+      error = result.error;
+    }
+
+    if (error) throw error;
+
+    if (!messages || messages.length === 0) {
+      chatList.innerHTML = `<p class="subText">まだチャットがない。</p>`;
+      return;
+    }
+
+    chatList.innerHTML = "";
+
+    messages.forEach((item) => {
+      const wrapper = document.createElement("div");
+      wrapper.className = "chatItem";
+
+      const meta = document.createElement("div");
+      meta.className = "chatMeta";
+      meta.innerHTML = `
+        <strong>${escapeHtml(item.username_snapshot)}</strong>
+        <span>${escapeHtml(formatDate(item.created_at))}</span>
+      `;
+
+      const body = document.createElement("div");
+      body.className = "chatMessage";
+      body.textContent = item.message;
+
+      wrapper.appendChild(meta);
+      wrapper.appendChild(body);
+
+      if (currentProfile.is_admin && item.user_id) {
+        const adminLine = document.createElement("div");
+        adminLine.className = "chatAdminLine";
+        adminLine.textContent = `user_id: ${item.user_id}`;
+        wrapper.appendChild(adminLine);
+
+        const actions = document.createElement("div");
+        actions.className = "chatAdminActions";
+
+        const delBtn = document.createElement("button");
+        delBtn.className = "smallBtn chatDeleteBtn";
+        delBtn.textContent = "削除";
+        delBtn.addEventListener("click", () => deleteChatMessage(item.id));
+
+        const chatBanBtn = document.createElement("button");
+        chatBanBtn.className = "smallBtn chatBanBtn";
+        chatBanBtn.textContent = "チャットBAN";
+        chatBanBtn.addEventListener("click", () => banUser(item.user_id, "chat"));
+
+        const gameBanBtn = document.createElement("button");
+        gameBanBtn.className = "smallBtn chatBanBtn";
+        gameBanBtn.textContent = "ゲームBAN";
+        gameBanBtn.addEventListener("click", () => banUser(item.user_id, "game"));
+
+        actions.appendChild(delBtn);
+        actions.appendChild(chatBanBtn);
+        actions.appendChild(gameBanBtn);
+
+        wrapper.appendChild(actions);
+      }
+
+      chatList.appendChild(wrapper);
+    });
+
+    setButtonsDisabled(uiLocked);
+  } catch (error) {
+    console.error(error);
+    msg(error.message || "チャット取得エラー", true);
+  }
+}
+
 async function loadMarket() {
   try {
     const user = await getCurrentUser();
@@ -527,7 +749,7 @@ async function loadMarket() {
 
       item.innerHTML = `
         <div class="marketInfo">
-          <strong>${jpName(listing.resource_type)}</strong>
+          <strong>${escapeHtml(jpName(listing.resource_type))}</strong>
           <span>数量: ${listing.quantity}</span>
           <span>単価: ${listing.price_per_unit}</span>
           <span>合計: ${total}</span>
@@ -580,7 +802,7 @@ async function loadPrices() {
       const box = document.createElement("div");
       box.className = "priceBox";
       box.innerHTML = `
-        <span>${jpName(row.resource_type)}</span>
+        <span>${escapeHtml(jpName(row.resource_type))}</span>
         <strong>${row.current_price}</strong>
         <span>範囲: ${row.min_price}〜${row.max_price}</span>
       `;
@@ -630,9 +852,9 @@ async function loadRankings() {
       item.className = "marketItem";
       item.innerHTML = `
         <div class="marketInfo">
-          <strong><span class="rankNum">#${index + 1}</span> ${player.username}</strong>
+          <strong><span class="rankNum">#${index + 1}</span> ${escapeHtml(player.username)}</strong>
           <span>総資産: ${player.total_assets}</span>
-          <span>称号: ${player.title} / Lv.${player.level}</span>
+          <span>称号: ${escapeHtml(player.title)} / Lv.${player.level}</span>
           <span>所持: ${player.money} / 木 ${player.wood} / 石 ${player.stone} / 鉄 ${player.iron}</span>
         </div>
       `;
@@ -666,10 +888,10 @@ async function loadHistory() {
       item.className = "marketItem";
       item.innerHTML = `
         <div class="marketInfo">
-          <strong>${jpName(trade.resource_type)} × ${trade.quantity}</strong>
+          <strong>${escapeHtml(jpName(trade.resource_type))} × ${trade.quantity}</strong>
           <span>単価: ${trade.price_per_unit} / 合計: ${trade.total_price}</span>
           <span>手数料: ${trade.fee} / 売り手受取: ${trade.seller_receive}</span>
-          <span>${formatDate(trade.created_at)}</span>
+          <span>${escapeHtml(formatDate(trade.created_at))}</span>
         </div>
       `;
       historyList.appendChild(item);
@@ -686,6 +908,7 @@ async function loadUser(user) {
   const profile = await createProfileIfMissing(user);
   const gatherCount = await getTodayGatherCount(user.id);
 
+  currentProfile = profile;
   welcomeText.textContent = `ようこそ、${profile.username}`;
   updateProfileUI(profile, gatherCount);
 
@@ -694,6 +917,7 @@ async function loadUser(user) {
   await loadMarket();
   await loadRankings();
   await loadHistory();
+  await loadChat();
 }
 
 signupBtn.addEventListener("click", signup);
@@ -707,6 +931,11 @@ marketSort.addEventListener("change", loadMarket);
 updatePricesBtn.addEventListener("click", updatePrices);
 refreshRankingBtn.addEventListener("click", loadRankings);
 refreshHistoryBtn.addEventListener("click", loadHistory);
+
+sendChatBtn.addEventListener("click", sendChatMessage);
+refreshChatBtn.addEventListener("click", loadChat);
+unbanChatBtn.addEventListener("click", () => unbanUser("chat"));
+unbanGameBtn.addEventListener("click", () => unbanUser("game"));
 
 buyWoodNpcBtn.addEventListener("click", () =>
   buyFromNpc("wood", Number(npcWoodQty.value))
