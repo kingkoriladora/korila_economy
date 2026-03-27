@@ -921,6 +921,7 @@ async function updatePrices() {
       msg(error.message || "相場更新エラー", true);
     }
   });
+}
 
 async function loadRankings() {
   try {
@@ -957,7 +958,6 @@ async function loadRankings() {
       if (rank === 2) rankLabel = "🥈 2位";
       if (rank === 3) rankLabel = "🥉 3位";
 
-      // rankings に id がある場合だけ自分判定
       const isMe =
         currentProfile &&
         player.id &&
@@ -988,26 +988,6 @@ async function loadRankings() {
         currentRankText.textContent = "自分の順位: 100位圏外、またはID未対応";
       }
     }
-  } catch (error) {
-    console.error(error);
-    msg(error.message || "ランキング取得エラー", true);
-  }
-}
-    rankingList.innerHTML = "";
-
-    data.forEach((player, index) => {
-      const item = document.createElement("div");
-      item.className = "marketItem";
-      item.innerHTML = `
-        <div class="marketInfo">
-          <strong><span class="rankNum">#${index + 1}</span> ${escapeHtml(player.username)}</strong>
-          <span>総資産: ${player.total_assets}</span>
-          <span>称号: ${escapeHtml(player.title)} / Lv.${player.level}</span>
-          <span>所持: ${player.money} / 木 ${player.wood} / 石 ${player.stone} / 鉄 ${player.iron}</span>
-        </div>
-      `;
-      rankingList.appendChild(item);
-    });
   } catch (error) {
     console.error(error);
     msg(error.message || "ランキング取得エラー", true);
