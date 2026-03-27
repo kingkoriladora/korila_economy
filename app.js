@@ -780,7 +780,7 @@ async function loadChat() {
         const delBtn = document.createElement("button");
         delBtn.className = "smallBtn chatDeleteBtn";
         delBtn.textContent = "削除";
-        delBtn.addEventListener("click", () => deleteChatMessage(item.id));
+        delBtn.addEventListener("click", () => deleteChatMessage(item.chat_id));
 
         const chatBanBtn = document.createElement("button");
         chatBanBtn.className = "smallBtn chatBanBtn";
