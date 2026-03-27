@@ -924,18 +924,76 @@ async function updatePrices() {
 }
 
 async function loadRankings() {
-  try {
+  try { 
     const { data, error } = await supabase
       .from("rankings")
       .select("*")
-      .order("total_assets", { ascending: false })
-      .limit(10);
+      .order("total_assets", { ascending: false });
 
     if (error) throw error;
 
     if (!data || !data.length) {
       rankingList.innerHTML = `<p class="subText">まだランキングがない。</p>`;
+
+      const currentRankText = document.getElementById("currentRankText");
+      if (currentRankText) {
+        currentRankText.textContent = "自分の順位: まだなし";
+      }
       return;
+    }
+
+    rankingList.innerHTML = "";
+
+    const top100 = data.slice(0, 100);
+    let myRank = -1;
+    let myData = null;
+
+    data.forEach((player, index) => {
+      if (currentProfile && player.id === currentProfile.id) {
+        myRank = index + 1;
+        myData = player;
+      }
+    });
+
+    top100.forEach((player, index) => {
+      const rank = index + 1;
+      const item = document.createElement("div");
+      item.className = "marketItem rankingItem";
+
+      if (currentProfile && player.id === currentProfile.id) {
+        item.classList.add("me");
+      }
+
+      const rankLabel =
+        rank === 1 ? "🥇 1位" :
+        rank === 2 ? "🥈 2位" :
+        rank === 3 ? "🥉 3位" :
+        `#${rank}`;
+
+      item.innerHTML = `
+        <div class="marketInfo">
+          <strong>${rankLabel} ${escapeHtml(player.username)}</strong>
+          <span>総資産: ${player.total_assets}</span>
+          <span>称号: ${escapeHtml(player.title)} / Lv.${player.level}</span>
+          <span>所持: ${player.money} / 木 ${player.wood} / 石 ${player.stone} / 鉄 ${player.iron}</span>
+        </div>
+      `;
+
+      rankingList.appendChild(item);
+    });
+
+    const currentRankText = document.getElementById("currentRankText");
+    if (currentRankText) {
+      if (myRank !== -1 && myData) {
+        currentRankText.textContent = `自分の順位: ${myRank}位 / 総資産: ${myData.total_assets}`;
+      } else {
+        currentRankText.textContent = "自分の順位: ランキング圏外";
+      }
+    }
+  } catch (error) {
+    console.error(error);
+    msg(error.message || "ランキング取得エラー", true);
+ 
     }
 
     rankingList.innerHTML = "";
