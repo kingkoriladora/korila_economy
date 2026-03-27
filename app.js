@@ -367,7 +367,7 @@ async function login() {
       if (!data.user) throw new Error("ログイン失敗");
 
       await loadUser(data.user);
-      msg("ログイン成功");
+      msg("ログインできた。");
     } catch (error) {
       console.error(error);
       msg(error.message || "ログインエラー", true);
@@ -383,14 +383,7 @@ async function logout() {
 
       currentProfile = null;
       showApp(false);
-      marketList.innerHTML = "";
-      priceBoard.innerHTML = "";
-      rankingList.innerHTML = "";
-      historyList.innerHTML = "";
-      chatList.innerHTML = "";
-      adminUserList.innerHTML = "";
-      banOverlay.classList.add("hidden");
-      msg("ログアウトした");
+      msg("ログアウトした。");
     } catch (error) {
       console.error(error);
       msg(error.message || "ログアウトエラー", true);
@@ -401,13 +394,35 @@ async function logout() {
 async function gather() {
   await runLocked(async () => {
     try {
-      const { data, error } = await supabase.rpc("gather_resource");
-      if (error) throw error;
+      const user = await getCurrentUser();
+      if (!user) throw new Error("ログインが必要");
+
+      const gatherCount = await getTodayGatherCount(user.id);
+      if (gatherCount >= DAILY_GATHER_LIMIT) {
+        msg("今日はもう採取上限や。", true);
+        return;
+      }
+
+      const roll = Math.random();
+      let resourceType = "wood";
+      if (roll >= 0.75 && roll < 0.95) resourceType = "stone";
+      if (roll >= 0.95) resourceType = "iron";
+
+      const { error: insertGatherError } = await supabase.from("daily_gathers").insert({
+        user_id: user.id,
+        gather_date: todayString(),
+      });
+      if (insertGatherError) throw insertGatherError;
+
+      const { error: rpcError } = await supabase.rpc("apply_gather_reward", {
+        p_user_id: user.id,
+        p_resource_type: resourceType,
+      });
+      if (rpcError) throw rpcError;
 
       await refreshProfileUI();
       await loadRankings();
-      await checkBanStatus();
-      msg(`${jpName(data.resource)}を1個ゲット`);
+      msg(`${jpName(resourceType)}を1個手に入れた。`);
     } catch (error) {
       console.error(error);
       msg(error.message || "採取エラー", true);
@@ -418,12 +433,12 @@ async function gather() {
 async function sellItem() {
   await runLocked(async () => {
     try {
-      const resource = sellResource.value;
       const quantity = Number(sellQuantity.value);
-      const price = Number(sellPrice.value);
+      const pricePerUnit = Number(sellPrice.value);
+      const resourceType = sellResource.value;
 
-      if (!["wood", "stone", "iron"].includes(resource)) {
-        msg("資源が変。", true);
+      if (!["wood", "stone", "iron"].includes(resourceType)) {
+        msg("資源を選んで。", true);
         return;
       }
 
@@ -432,30 +447,27 @@ async function sellItem() {
         return;
       }
 
-      if (quantity > 99) {
-        msg("1回の出品は99個まで。", true);
+      if (!Number.isInteger(pricePerUnit) || pricePerUnit <= 0) {
+        msg("単価を正しく入れて。", true);
         return;
       }
 
-      if (!Number.isInteger(price) || price <= 0) {
-        msg("価格を正しく入れて。", true);
-        return;
-      }
-
-      const { error } = await supabase.rpc("create_market_listing", {
-        p_resource_type: resource,
+      const { error } = await supabase.rpc("create_listing", {
+        p_resource_type: resourceType,
         p_quantity: quantity,
-        p_price_per_unit: price,
+        p_price_per_unit: pricePerUnit,
       });
 
       if (error) throw error;
 
+      sellQuantity.value = "";
+      sellPrice.value = "";
+
       await refreshProfileUI();
       await loadMarket();
+      await loadPrices();
       await loadRankings();
-      await checkBanStatus();
-
-      msg(`${jpName(resource)}を${quantity}個出品した。`);
+      msg("出品した。");
     } catch (error) {
       console.error(error);
       msg(error.message || "出品エラー", true);
@@ -466,19 +478,17 @@ async function sellItem() {
 async function buyListing(listingId) {
   await runLocked(async () => {
     try {
-      const { data, error } = await supabase.rpc("buy_market_listing", {
+      const { error } = await supabase.rpc("buy_listing", {
         p_listing_id: listingId,
       });
-
       if (error) throw error;
 
       await refreshProfileUI();
       await loadMarket();
-      await loadHistory();
+      await loadPrices();
       await loadRankings();
-      await checkBanStatus();
-
-      msg(`${jpName(data.resource_type)}を${data.quantity}個買った。手数料 ${data.fee} コイン。`);
+      await loadHistory();
+      msg("購入した。");
     } catch (error) {
       console.error(error);
       msg(error.message || "購入エラー", true);
@@ -489,21 +499,48 @@ async function buyListing(listingId) {
 async function cancelListing(listingId) {
   await runLocked(async () => {
     try {
-      const { data, error } = await supabase.rpc("cancel_market_listing", {
+      const { error } = await supabase.rpc("cancel_listing", {
         p_listing_id: listingId,
       });
-
       if (error) throw error;
 
       await refreshProfileUI();
       await loadMarket();
-      await loadRankings();
-      await checkBanStatus();
-
-      msg(`${jpName(data.resource_type)}の出品を取り消した。`);
+      await loadPrices();
+      msg("出品を取り消した。");
     } catch (error) {
       console.error(error);
       msg(error.message || "取り消しエラー", true);
+    }
+  });
+}
+
+async function buyFromNpc(resourceType, quantity) {
+  await runLocked(async () => {
+    try {
+      if (!["wood", "stone", "iron"].includes(resourceType)) {
+        msg("資源が不正。", true);
+        return;
+      }
+
+      if (!Number.isInteger(quantity) || quantity <= 0) {
+        msg("NPC購入数を正しく入れて。", true);
+        return;
+      }
+
+      const { error } = await supabase.rpc("buy_from_npc", {
+        p_resource_type: resourceType,
+        p_quantity: quantity,
+      });
+      if (error) throw error;
+
+      await refreshProfileUI();
+      await loadPrices();
+      await loadRankings();
+      msg(`NPCショップで${jpName(resourceType)}を${quantity}個買った。`);
+    } catch (error) {
+      console.error(error);
+      msg(error.message || "NPC購入エラー", true);
     }
   });
 }
@@ -513,64 +550,23 @@ async function changeUsername() {
     try {
       const newName = newUsernameInput.value.trim();
 
-      if (!newName) {
-        msg("新しいユーザー名を入れて。", true);
-        return;
-      }
-
       if (newName.length < 2 || newName.length > 16) {
-        msg("ユーザー名は2〜16文字にして。", true);
+        msg("新しいユーザー名は2〜16文字にして。", true);
         return;
       }
 
-      const { data, error } = await supabase.rpc("change_username", {
+      const { error } = await supabase.rpc("change_username", {
         p_new_username: newName,
       });
-
       if (error) throw error;
 
       newUsernameInput.value = "";
       await refreshProfileUI();
       await loadRankings();
-      await loadChat();
-      await checkBanStatus();
-
-      msg(`ユーザー名を「${data.username}」に変更した。`);
+      msg("ユーザー名を変えた。");
     } catch (error) {
       console.error(error);
       msg(error.message || "ユーザー名変更エラー", true);
-    }
-  });
-}
-
-async function buyFromNpc(resource, quantity) {
-  await runLocked(async () => {
-    try {
-      if (!Number.isInteger(quantity) || quantity <= 0) {
-        msg("数量を正しく入れて。", true);
-        return;
-      }
-
-      if (quantity > 20) {
-        msg("NPCショップは1回20個まで。", true);
-        return;
-      }
-
-      const { data, error } = await supabase.rpc("buy_from_npc", {
-        p_resource_type: resource,
-        p_quantity: quantity,
-      });
-
-      if (error) throw error;
-
-      await refreshProfileUI();
-      await loadRankings();
-      await checkBanStatus();
-
-      msg(`${jpName(data.resource_type)}を${data.quantity}個買った。合計 ${data.total_price} コイン。`);
-    } catch (error) {
-      console.error(error);
-      msg(error.message || "NPCショップ購入エラー", true);
     }
   });
 }
@@ -623,14 +619,18 @@ async function deleteChatMessage(messageId) {
 async function banUser(targetUserId, banType) {
   await runLocked(async () => {
     try {
-      const reason = window.prompt(`${banType === "chat" ? "チャットBAN" : "ゲームBAN"}の理由を入れて`);
+      const reason = window.prompt(
+        `${banType === "chat" ? "チャットBAN" : "ゲームBAN"}の理由を入れて`
+      );
+
       if (!reason || !reason.trim()) {
         msg("理由を入れて。", true);
         return;
       }
 
       const minutesText = window.prompt("BAN時間（分）。永久なら空欄でOK");
-      const minutes = minutesText && minutesText.trim() !== "" ? Number(minutesText) : null;
+      const minutes =
+        minutesText && minutesText.trim() !== "" ? Number(minutesText) : null;
 
       if (minutes !== null && (!Number.isInteger(minutes) || minutes <= 0)) {
         msg("分数を正しく入れて。", true);
@@ -648,6 +648,7 @@ async function banUser(targetUserId, banType) {
 
       await loadChat();
       await loadBanUsers();
+      await checkBanStatus();
       msg(`${banType === "chat" ? "チャットBAN" : "ゲームBAN"}した。`);
     } catch (error) {
       console.error(error);
@@ -674,6 +675,7 @@ async function unbanUser(banType) {
       if (error) throw error;
 
       await loadBanUsers();
+      await checkBanStatus();
       msg(`${banType === "chat" ? "チャットBAN" : "ゲームBAN"}を解除した。`);
     } catch (error) {
       console.error(error);
@@ -684,7 +686,7 @@ async function unbanUser(banType) {
 
 async function loadBanUsers() {
   try {
-    if (!currentProfile || !currentProfile.is_admin) {
+    if (!currentProfile?.is_admin) {
       adminUserList.innerHTML = "";
       return;
     }
@@ -694,19 +696,22 @@ async function loadBanUsers() {
 
     adminUserList.innerHTML = "";
 
-    if (!data || data.length === 0) {
-      adminUserList.innerHTML = `<p class="subText">BAN中ユーザーなし。</p>`;
+    if (!data || !data.length) {
+      adminUserList.innerHTML = `<p class="subText">BAN中ユーザーはいない。</p>`;
       return;
     }
 
     data.forEach((ban) => {
       const div = document.createElement("div");
-      div.className = "adminUserItem";
+      div.className = "marketItem";
       div.innerHTML = `
-        <strong>${escapeHtml(ban.user_id)}</strong><br>
-        種類: ${escapeHtml(ban.ban_type)}<br>
-        理由: ${escapeHtml(ban.reason)}<br>
-        期限: ${ban.expires_at ? escapeHtml(formatDate(ban.expires_at)) : "永久"}
+        <div class="marketInfo">
+          <strong>${escapeHtml(ban.username_snapshot || ban.user_id)}</strong>
+          <span>user_id: ${escapeHtml(ban.user_id)}</span>
+          <span>種類: ${escapeHtml(ban.ban_type)}</span>
+          <span>理由: ${escapeHtml(ban.reason || "理由なし")}</span>
+          <span>期限: ${ban.expires_at ? escapeHtml(formatDate(ban.expires_at)) : "永久"}</span>
+        </div>
       `;
       adminUserList.appendChild(div);
     });
@@ -742,7 +747,7 @@ async function loadChat() {
 
     chatList.innerHTML = "";
 
-    messages.forEach((item) => {
+    [...messages].reverse().forEach((item) => {
       const wrapper = document.createElement("div");
       wrapper.className = "chatItem";
 
