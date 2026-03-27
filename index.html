@@ -2,228 +2,174 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Korila Economy</title>
-  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="container">
-    <header class="topHeader card">
-      <div>
-        <p class="eyebrow">ONLINE ECONOMY GAME</p>
-        <h1>Korila Economy</h1>
-        <p class="subText">採取して、出品して、取引する。</p>
-      </div>
-      <div class="headerRight">
-        <div class="miniInfo">
-          <span>手数料</span>
-          <strong>10%</strong>
-        </div>
-        <div class="miniInfo">
-          <span>1日採取上限</span>
-          <strong id="dailyLimitText">20</strong>
-        </div>
-      </div>
+  <main class="container">
+    <header class="hero">
+      <h1>Korila Economy</h1>
+      <p class="subText">
+        採取して、売買して、資産を増やす経済ゲーム
+      </p>
     </header>
 
-    <section class="card">
-      <h2>遊び方</h2>
-      <div class="guideList">
-        <div class="guideItem">1. 木・石・鉄を採取する</div>
-        <div class="guideItem">2. マーケットやNPCショップで資源を売買する</div>
-        <div class="guideItem">3. チャットで交流しながら総資産ランキング上位を目指す</div>
-      </div>
-    </section>
-
+    <!-- 認証 -->
     <section id="authSection" class="card">
       <h2>ログイン / 登録</h2>
-
-      <input id="username" type="text" placeholder="ユーザー名" />
-      <input id="email" type="email" placeholder="メールアドレス" />
-      <input id="password" type="password" placeholder="パスワード" />
+      <div class="formCol">
+        <input id="username" type="text" placeholder="ユーザー名（登録時）" />
+        <input id="email" type="email" placeholder="メールアドレス" />
+        <input id="password" type="password" placeholder="パスワード" />
+      </div>
 
       <div class="row">
         <button id="signupBtn">登録</button>
         <button id="loginBtn">ログイン</button>
       </div>
-
-      <p class="subText">登録したあとログインするとゲーム画面に入れる。</p>
     </section>
 
+    <!-- アプリ本体 -->
     <section id="appSection" class="hidden" aria-hidden="true">
-      <div class="card">
-        <div class="appHeader">
+      <section class="card">
+        <div class="topBar">
           <div>
             <h2 id="welcomeText">ようこそ</h2>
-            <p id="titleText" class="subText">称号: 新米採取者 / Lv.1</p>
+            <p id="titleText" class="subText">称号: - / Lv.1</p>
           </div>
-          <button id="logoutBtn" class="danger">ログアウト</button>
+          <button id="logoutBtn">ログアウト</button>
         </div>
 
-        <div class="stats statsTop">
-          <div class="statBox">
-            <span>コイン</span>
-            <strong id="moneyText">0</strong>
-          </div>
-          <div class="statBox">
-            <span>今日の採取回数</span>
-            <strong id="gatherCountText">0 / 20</strong>
-          </div>
-          <div class="statBox">
-            <span>木</span>
-            <strong id="woodText">0</strong>
-          </div>
-          <div class="statBox">
-            <span>石</span>
-            <strong id="stoneText">0</strong>
-          </div>
-          <div class="statBox">
-            <span>鉄</span>
-            <strong id="ironText">0</strong>
-          </div>
+        <div class="howToPlay">
+          <h3>遊び方</h3>
+          <p class="subText">お金を増やす経済ゲームです</p>
+          <ol>
+            <li>採取して木・石・鉄を集める</li>
+            <li>マーケットで売買してお金を増やす</li>
+            <li>相場を見て高いタイミングで売る</li>
+            <li>ランキング上位を目指す</li>
+          </ol>
         </div>
-      </div>
+      </section>
 
-      <section class="card">
-        <div class="marketHeader">
-          <div>
-            <h3>全体チャット</h3>
-            <p class="subText">最新50件。管理者は削除とBANができる。</p>
-          </div>
-          <button id="refreshChatBtn">更新</button>
+      <section class="grid statsGrid">
+        <div class="card statCard">
+          <h3>所持金</h3>
+          <p class="bigNumber">💰 <span id="moneyText">0</span></p>
         </div>
 
-        <div id="chatList" class="chatList"></div>
+        <div class="card statCard">
+          <h3>木</h3>
+          <p class="bigNumber"><span id="woodText">0</span></p>
+        </div>
 
-        <label class="label">メッセージ</label>
-        <textarea id="chatInput" maxlength="100" placeholder="100文字まで"></textarea>
-        <button id="sendChatBtn" class="wideBtn">送信</button>
+        <div class="card statCard">
+          <h3>石</h3>
+          <p class="bigNumber"><span id="stoneText">0</span></p>
+        </div>
 
-        <div id="adminBanPanel" class="adminPanel hidden">
-          <h4>管理者：BAN解除</h4>
-          <input id="banTargetUserId" type="text" placeholder="対象 user_id" />
+        <div class="card statCard">
+          <h3>鉄</h3>
+          <p class="bigNumber"><span id="ironText">0</span></p>
+        </div>
+      </section>
+
+      <section class="grid twoCol">
+        <section class="card">
+          <div class="sectionHeader">
+            <div>
+              <h3>採取</h3>
+              <p class="subText">
+                今日の採取回数: <span id="gatherCountText">0 / 20</span>
+              </p>
+              <p class="subText">
+                1日の上限: <span id="dailyLimitText">20</span>
+              </p>
+            </div>
+            <button id="gatherBtn">採取する</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <h3>ユーザー名変更</h3>
           <div class="row">
-            <button id="unbanChatBtn">チャットBAN解除</button>
-            <button id="unbanGameBtn">ゲームBAN解除</button>
+            <input id="newUsername" type="text" placeholder="新しいユーザー名" />
+            <button id="changeUsernameBtn">変更</button>
           </div>
-        </div>
+        </section>
       </section>
 
-      <section id="adminUserListSection" class="card hidden">
-        <h3>管理者：BAN中ユーザー</h3>
-        <div id="adminUserList" class="adminUserList"></div>
-      </section>
-
-      <div class="grid">
+      <section class="grid twoCol">
         <section class="card">
-          <h3>資源採取</h3>
-          <p class="subText">1日20回まで。短時間連打は制限される。</p>
-          <button id="gatherBtn" class="wideBtn">採取する</button>
+          <div class="sectionHeader">
+            <div>
+              <h3>出品</h3>
+              <p class="subText">資源をマーケットに出品できます</p>
+            </div>
+          </div>
 
-          <div class="priceGuide">
-            <h4>参考価格ルール</h4>
-            <div class="guideRow"><span>木</span><strong>5〜50</strong></div>
-            <div class="guideRow"><span>石</span><strong>10〜80</strong></div>
-            <div class="guideRow"><span>鉄</span><strong>30〜200</strong></div>
-            <div class="guideRow"><span>出品上限</span><strong>1回99個まで</strong></div>
+          <div class="formCol">
+            <select id="sellResource">
+              <option value="wood">木</option>
+              <option value="stone">石</option>
+              <option value="iron">鉄</option>
+            </select>
+            <input id="sellQuantity" type="number" placeholder="数量" />
+            <input id="sellPrice" type="number" placeholder="1個あたりの価格" />
+            <button id="sellBtn">出品する</button>
           </div>
         </section>
 
         <section class="card">
-          <h3>出品フォーム</h3>
-          <p class="subText">価格制限あり。売れたら10%の手数料が引かれる。</p>
+          <div class="sectionHeader">
+            <div>
+              <h3>NPCショップ</h3>
+              <p class="subText">固定価格でNPCから購入できます</p>
+            </div>
+          </div>
 
-          <label class="label">資源</label>
-          <select id="sellResource">
-            <option value="wood">木</option>
-            <option value="stone">石</option>
-            <option value="iron">鉄</option>
-          </select>
+          <div class="npcList">
+            <div class="npcRow">
+              <span>木</span>
+              <input id="npcWoodQty" type="number" min="1" value="1" />
+              <button id="buyWoodNpcBtn">木を買う</button>
+            </div>
 
-          <label class="label">数量</label>
-          <input id="sellQuantity" type="number" min="1" max="99" value="1" />
+            <div class="npcRow">
+              <span>石</span>
+              <input id="npcStoneQty" type="number" min="1" value="1" />
+              <button id="buyStoneNpcBtn">石を買う</button>
+            </div>
 
-          <label class="label">1個あたりの価格</label>
-          <input id="sellPrice" type="number" min="1" value="10" />
-
-          <button id="sellBtn" class="wideBtn">出品する</button>
+            <div class="npcRow">
+              <span>鉄</span>
+              <input id="npcIronQty" type="number" min="1" value="1" />
+              <button id="buyIronNpcBtn">鉄を買う</button>
+            </div>
+          </div>
         </section>
-      </div>
+      </section>
 
       <section class="card">
-        <div class="marketHeader">
-          <div>
-            <h3>NPCショップ</h3>
-            <p class="subText">相場より少し高い値段で、すぐ資源を買える。</p>
-          </div>
-        </div>
-
-        <div class="grid">
-          <div class="priceGuide">
-            <h4>木を買う</h4>
-            <p class="subText">NPC価格: 相場 + 5</p>
-            <input id="npcWoodQty" type="number" min="1" max="20" value="1" />
-            <button id="buyWoodNpcBtn" class="wideBtn">木を買う</button>
-          </div>
-
-          <div class="priceGuide">
-            <h4>石を買う</h4>
-            <p class="subText">NPC価格: 相場 + 8</p>
-            <input id="npcStoneQty" type="number" min="1" max="20" value="1" />
-            <button id="buyStoneNpcBtn" class="wideBtn">石を買う</button>
-          </div>
-        </div>
-
-        <div class="priceGuide" style="margin-top: 16px;">
-          <h4>鉄を買う</h4>
-          <p class="subText">NPC価格: 相場 + 12</p>
-          <input id="npcIronQty" type="number" min="1" max="20" value="1" />
-          <button id="buyIronNpcBtn" class="wideBtn">鉄を買う</button>
-        </div>
-      </section>
-
-      <div class="grid">
-        <section class="card">
-          <h3>プロフィール設定</h3>
-          <p class="subText">ユーザー名を変更できる。2〜16文字。</p>
-
-          <label class="label">新しいユーザー名</label>
-          <input id="newUsername" type="text" maxlength="16" placeholder="新しいユーザー名" />
-
-          <button id="changeUsernameBtn" class="wideBtn">ユーザー名を変更</button>
-        </section>
-
-        <section class="card">
-          <h3>資源の説明</h3>
-          <p class="subText">相場や用途の目安。</p>
-
-          <div class="priceGuide">
-            <div class="guideRow"><span>木</span><strong>安め / 集めやすい</strong></div>
-            <div class="guideRow"><span>石</span><strong>中価格 / バランス型</strong></div>
-            <div class="guideRow"><span>鉄</span><strong>高め / 出にくい</strong></div>
-          </div>
-        </section>
-      </div>
-
-      <section class="card">
-        <div class="marketHeader">
+        <div class="sectionHeader">
           <div>
             <h3>相場</h3>
-            <p class="subText">資源の基準価格。相場更新は管理者のみ。</p>
+            <p class="subText">現在の資源価格</p>
           </div>
           <button id="updatePricesBtn">相場更新</button>
         </div>
-        <div id="priceBoard" class="stats"></div>
+        <div id="priceBoard" class="priceBoard"></div>
       </section>
 
       <section class="card">
-        <div class="marketHeader marketHeaderWrap">
+        <div class="marketHeader">
           <div>
             <h3>マーケット</h3>
-            <p class="subText">他プレイヤーの出品を購入できる。自分の出品は取り消しできる。</p>
+            <p class="subText">プレイヤー同士で売買できます</p>
           </div>
 
-          <div class="marketTools">
+          <div class="marketControls">
             <select id="marketSort">
               <option value="newest">新しい順</option>
               <option value="priceAsc">安い順</option>
@@ -233,6 +179,7 @@
             <button id="refreshMarketBtn">一覧を更新</button>
           </div>
         </div>
+
         <div id="marketList" class="marketList"></div>
       </section>
 
@@ -242,7 +189,7 @@
             <div>
               <h3>ランキング</h3>
               <p id="currentRankText" class="subText">自分の順位: 読み込み中...</p>
-              <p class="subText">総資産の高い順。</p>
+              <p class="subText">総資産の高い順。上位100位まで表示</p>
             </div>
             <button id="refreshRankingBtn">更新</button>
           </div>
@@ -253,24 +200,67 @@
           <div class="marketHeader">
             <div>
               <h3>取引履歴</h3>
-              <p class="subText">最近の売買履歴。</p>
+              <p class="subText">最近の売買履歴</p>
             </div>
             <button id="refreshHistoryBtn">更新</button>
           </div>
           <div id="historyList" class="marketList"></div>
         </section>
       </div>
+
+      <section class="card">
+        <div class="marketHeader">
+          <div>
+            <h3>チャット</h3>
+            <p class="subText">プレイヤー同士で会話できます</p>
+          </div>
+          <button id="refreshChatBtn">更新</button>
+        </div>
+
+        <div class="chatInputRow">
+          <input id="chatInput" type="text" placeholder="メッセージを入力" />
+          <button id="sendChatBtn">送信</button>
+        </div>
+
+        <div id="chatList" class="chatList"></div>
+      </section>
+
+      <section id="adminBanPanel" class="card hidden">
+        <div class="marketHeader">
+          <div>
+            <h3>管理者BANパネル</h3>
+            <p class="subText">user_id を入れてBAN解除できます</p>
+          </div>
+        </div>
+
+        <div class="row">
+          <input id="banTargetUserId" type="text" placeholder="解除したい user_id" />
+          <button id="unbanChatBtn">チャットBAN解除</button>
+          <button id="unbanGameBtn">ゲームBAN解除</button>
+        </div>
+      </section>
+
+      <section id="adminUserListSection" class="card hidden">
+        <div class="marketHeader">
+          <div>
+            <h3>BAN中ユーザー一覧</h3>
+            <p class="subText">現在有効なBAN一覧</p>
+          </div>
+        </div>
+
+        <div id="adminUserList" class="marketList"></div>
+      </section>
     </section>
 
     <div id="banOverlay" class="banOverlay hidden">
       <div class="banBox">
         <h2>利用停止中</h2>
-        <p id="banMessage">このアカウントは現在利用できません</p>
+        <p id="banMessage">このアカウントは現在利用停止中です</p>
       </div>
     </div>
 
-    <p id="message"></p>
-  </div>
+    <p id="message" class="messageArea"></p>
+  </main>
 
   <script type="module" src="app.js"></script>
 </body>
