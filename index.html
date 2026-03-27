@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Korila Economy</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <div class="container">
+    <header class="topHeader card">
+      <div>
+        <p class="eyebrow">ONLINE ECONOMY GAME</p>
+        <h1>Korila Economy</h1>
+        <p class="subText">採取して、出品して、取引する。</p>
+      </div>
+      <div class="headerRight">
+        <div class="miniInfo">
+          <span>手数料</span>
+          <strong>10%</strong>
+        </div>
+        <div class="miniInfo">
+          <span>1日採取上限</span>
+          <strong id="dailyLimitText">20</strong>
+        </div>
+      </div>
+    </header>
+
+    <section id="authSection" class="card">
+      <h2>ログイン / 登録</h2>
+
+      <input id="username" type="text" placeholder="ユーザー名" />
+      <input id="email" type="email" placeholder="メールアドレス" />
+      <input id="password" type="password" placeholder="パスワード" />
+
+      <div class="row">
+        <button id="signupBtn">登録</button>
+        <button id="loginBtn">ログイン</button>
+      </div>
+
+      <p class="subText">登録したあとログインするとゲーム画面に入れる。</p>
+    </section>
+
+    <section id="appSection" class="hidden">
+      <div class="card">
+        <div class="appHeader">
+          <div>
+            <h2 id="welcomeText">ようこそ</h2>
+            <p id="titleText" class="subText">称号: 新米採取者 / Lv.1</p>
+          </div>
+          <button id="logoutBtn" class="danger">ログアウト</button>
+        </div>
+
+        <div class="stats statsTop">
+          <div class="statBox">
+            <span>コイン</span>
+            <strong id="moneyText">0</strong>
+          </div>
+          <div class="statBox">
+            <span>今日の採取回数</span>
+            <strong id="gatherCountText">0 / 20</strong>
+          </div>
+          <div class="statBox">
+            <span>木</span>
+            <strong id="woodText">0</strong>
+          </div>
+          <div class="statBox">
+            <span>石</span>
+            <strong id="stoneText">0</strong>
+          </div>
+          <div class="statBox">
+            <span>鉄</span>
+            <strong id="ironText">0</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <section class="card">
+          <h3>資源採取</h3>
+          <p class="subText">1日20回まで。短時間連打は制限される。</p>
+          <button id="gatherBtn" class="wideBtn">採取する</button>
+
+          <div class="priceGuide">
+            <h4>参考価格ルール</h4>
+            <div class="guideRow"><span>木</span><strong>5〜50</strong></div>
+            <div class="guideRow"><span>石</span><strong>10〜80</strong></div>
+            <div class="guideRow"><span>鉄</span><strong>30〜200</strong></div>
+            <div class="guideRow"><span>出品上限</span><strong>1回99個まで</strong></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h3>出品フォーム</h3>
+          <p class="subText">価格制限あり。売れたら10%の手数料が引かれる。</p>
+
+          <label class="label">資源</label>
+          <select id="sellResource">
+            <option value="wood">木</option>
+            <option value="stone">石</option>
+            <option value="iron">鉄</option>
+          </select>
+
+          <label class="label">数量</label>
+          <input id="sellQuantity" type="number" min="1" max="99" value="1" />
+
+          <label class="label">1個あたりの価格</label>
+          <input id="sellPrice" type="number" min="1" value="10" />
+
+          <button id="sellBtn" class="wideBtn">出品する</button>
+        </section>
+      </div>
+
+      <div class="grid">
+        <section class="card">
+          <h3>プロフィール設定</h3>
+          <p class="subText">ユーザー名を変更できる。2〜16文字。</p>
+
+          <label class="label">新しいユーザー名</label>
+          <input id="newUsername" type="text" maxlength="16" placeholder="新しいユーザー名" />
+
+          <button id="changeUsernameBtn" class="wideBtn">ユーザー名を変更</button>
+        </section>
+
+        <section class="card">
+          <h3>資源の説明</h3>
+          <p class="subText">相場や用途の目安。</p>
+
+          <div class="priceGuide">
+            <div class="guideRow"><span>木</span><strong>安め / 集めやすい</strong></div>
+            <div class="guideRow"><span>石</span><strong>中価格 / バランス型</strong></div>
+            <div class="guideRow"><span>鉄</span><strong>高め / 出にくい</strong></div>
+          </div>
+        </section>
+      </div>
+
+      <section class="card">
+        <div class="marketHeader">
+          <div>
+            <h3>相場</h3>
+            <p class="subText">資源の基準価格。相場更新は管理者のみ。</p>
+          </div>
+          <button id="updatePricesBtn">相場更新</button>
+        </div>
+        <div id="priceBoard" class="stats"></div>
+      </section>
+
+      <section class="card">
+        <div class="marketHeader marketHeaderWrap">
+          <div>
+            <h3>マーケット</h3>
+            <p class="subText">他プレイヤーの出品を購入できる。自分の出品は取り消しできる。</p>
+          </div>
+
+          <div class="marketTools">
+            <select id="marketSort">
+              <option value="newest">新しい順</option>
+              <option value="priceAsc">安い順</option>
+              <option value="priceDesc">高い順</option>
+              <option value="quantityDesc">数量多い順</option>
+            </select>
+            <button id="refreshMarketBtn">一覧を更新</button>
+          </div>
+        </div>
+        <div id="marketList" class="marketList"></div>
+      </section>
+
+      <div class="grid">
+        <section class="card">
+          <div class="marketHeader">
+            <div>
+              <h3>ランキング</h3>
+              <p class="subText">総資産の高い順。</p>
+            </div>
+            <button id="refreshRankingBtn">更新</button>
+          </div>
+          <div id="rankingList" class="marketList"></div>
+        </section>
+
+        <section class="card">
+          <div class="marketHeader">
+            <div>
+              <h3>取引履歴</h3>
+              <p class="subText">最近の売買履歴。</p>
+            </div>
+            <button id="refreshHistoryBtn">更新</button>
+          </div>
+          <div id="historyList" class="marketList"></div>
+        </section>
+      </div>
+    </section>
+
+    <p id="message"></p>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
