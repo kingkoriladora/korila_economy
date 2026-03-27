@@ -47,6 +47,11 @@ const banTargetUserId = document.getElementById("banTargetUserId");
 const unbanChatBtn = document.getElementById("unbanChatBtn");
 const unbanGameBtn = document.getElementById("unbanGameBtn");
 
+const adminUserListSection = document.getElementById("adminUserListSection");
+const adminUserList = document.getElementById("adminUserList");
+const banOverlay = document.getElementById("banOverlay");
+const banMessage = document.getElementById("banMessage");
+
 const welcomeText = document.getElementById("welcomeText");
 const titleText = document.getElementById("titleText");
 const moneyText = document.getElementById("moneyText");
@@ -252,8 +257,37 @@ async function refreshProfileUI() {
 
   if (profile.is_admin) {
     adminBanPanel.classList.remove("hidden");
+    adminUserListSection.classList.remove("hidden");
   } else {
     adminBanPanel.classList.add("hidden");
+    adminUserListSection.classList.add("hidden");
+  }
+}
+
+async function checkBanStatus() {
+  try {
+    const { data, error } = await supabase.rpc("get_my_ban_status");
+    if (error) throw error;
+
+    if (data?.game_banned) {
+      banOverlay.classList.remove("hidden");
+      banMessage.textContent = data.game_reason
+        ? `ゲームBAN中: ${data.game_reason}`
+        : "このアカウントは現在利用停止中です";
+    } else {
+      banOverlay.classList.add("hidden");
+    }
+
+    if (data?.chat_banned) {
+      msg(
+        data.chat_reason
+          ? `チャットBAN中: ${data.chat_reason}`
+          : "チャットBAN中です",
+        true
+      );
+    }
+  } catch (error) {
+    console.error(error);
   }
 }
 
@@ -354,6 +388,8 @@ async function logout() {
       rankingList.innerHTML = "";
       historyList.innerHTML = "";
       chatList.innerHTML = "";
+      adminUserList.innerHTML = "";
+      banOverlay.classList.add("hidden");
       msg("ログアウトした");
     } catch (error) {
       console.error(error);
@@ -370,6 +406,7 @@ async function gather() {
 
       await refreshProfileUI();
       await loadRankings();
+      await checkBanStatus();
       msg(`${jpName(data.resource)}を1個ゲット`);
     } catch (error) {
       console.error(error);
@@ -416,6 +453,7 @@ async function sellItem() {
       await refreshProfileUI();
       await loadMarket();
       await loadRankings();
+      await checkBanStatus();
 
       msg(`${jpName(resource)}を${quantity}個出品した。`);
     } catch (error) {
@@ -438,6 +476,7 @@ async function buyListing(listingId) {
       await loadMarket();
       await loadHistory();
       await loadRankings();
+      await checkBanStatus();
 
       msg(`${jpName(data.resource_type)}を${data.quantity}個買った。手数料 ${data.fee} コイン。`);
     } catch (error) {
@@ -459,6 +498,7 @@ async function cancelListing(listingId) {
       await refreshProfileUI();
       await loadMarket();
       await loadRankings();
+      await checkBanStatus();
 
       msg(`${jpName(data.resource_type)}の出品を取り消した。`);
     } catch (error) {
@@ -493,6 +533,7 @@ async function changeUsername() {
       await refreshProfileUI();
       await loadRankings();
       await loadChat();
+      await checkBanStatus();
 
       msg(`ユーザー名を「${data.username}」に変更した。`);
     } catch (error) {
@@ -524,6 +565,7 @@ async function buyFromNpc(resource, quantity) {
 
       await refreshProfileUI();
       await loadRankings();
+      await checkBanStatus();
 
       msg(`${jpName(data.resource_type)}を${data.quantity}個買った。合計 ${data.total_price} コイン。`);
     } catch (error) {
@@ -551,6 +593,7 @@ async function sendChatMessage() {
 
       chatInput.value = "";
       await loadChat();
+      await checkBanStatus();
       msg("チャットを送信した。");
     } catch (error) {
       console.error(error);
@@ -604,6 +647,7 @@ async function banUser(targetUserId, banType) {
       if (error) throw error;
 
       await loadChat();
+      await loadBanUsers();
       msg(`${banType === "chat" ? "チャットBAN" : "ゲームBAN"}した。`);
     } catch (error) {
       console.error(error);
@@ -629,12 +673,47 @@ async function unbanUser(banType) {
 
       if (error) throw error;
 
+      await loadBanUsers();
       msg(`${banType === "chat" ? "チャットBAN" : "ゲームBAN"}を解除した。`);
     } catch (error) {
       console.error(error);
       msg(error.message || "BAN解除エラー", true);
     }
   });
+}
+
+async function loadBanUsers() {
+  try {
+    if (!currentProfile || !currentProfile.is_admin) {
+      adminUserList.innerHTML = "";
+      return;
+    }
+
+    const { data, error } = await supabase.rpc("get_active_bans_admin");
+    if (error) throw error;
+
+    adminUserList.innerHTML = "";
+
+    if (!data || data.length === 0) {
+      adminUserList.innerHTML = `<p class="subText">BAN中ユーザーなし。</p>`;
+      return;
+    }
+
+    data.forEach((ban) => {
+      const div = document.createElement("div");
+      div.className = "adminUserItem";
+      div.innerHTML = `
+        <strong>${escapeHtml(ban.user_id)}</strong><br>
+        種類: ${escapeHtml(ban.ban_type)}<br>
+        理由: ${escapeHtml(ban.reason)}<br>
+        期限: ${ban.expires_at ? escapeHtml(formatDate(ban.expires_at)) : "永久"}
+      `;
+      adminUserList.appendChild(div);
+    });
+  } catch (error) {
+    console.error(error);
+    msg(error.message || "BAN一覧取得エラー", true);
+  }
 }
 
 async function loadChat() {
@@ -666,6 +745,14 @@ async function loadChat() {
     messages.forEach((item) => {
       const wrapper = document.createElement("div");
       wrapper.className = "chatItem";
+
+      if (currentProfile && item.user_id && item.user_id === currentProfile.id) {
+        wrapper.classList.add("me");
+      }
+
+      if (item.username_snapshot === "admin" || item.username_snapshot === "管理者") {
+        wrapper.classList.add("admin-author");
+      }
 
       const meta = document.createElement("div");
       meta.className = "chatMeta";
@@ -822,6 +909,7 @@ async function updatePrices() {
 
       await loadPrices();
       await loadRankings();
+      await checkBanStatus();
       msg("相場を更新した。");
     } catch (error) {
       console.error(error);
@@ -913,11 +1001,13 @@ async function loadUser(user) {
   updateProfileUI(profile, gatherCount);
 
   await refreshProfileUI();
+  await checkBanStatus();
   await loadPrices();
   await loadMarket();
   await loadRankings();
   await loadHistory();
   await loadChat();
+  await loadBanUsers();
 }
 
 signupBtn.addEventListener("click", signup);
