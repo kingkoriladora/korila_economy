@@ -376,11 +376,16 @@ async function login() {
       msg(error.message || "ログインエラー", true);
     }
   });
+  startNotificationPolling();
 }
 
 async function logout() {
   await runLocked(async () => {
     try {
+      if (notificationPollTimer) {
+  clearInterval(notificationPollTimer);
+  notificationPollTimer = null;
+}
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
