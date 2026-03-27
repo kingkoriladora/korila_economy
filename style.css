@@ -15,8 +15,12 @@
   --shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
 }
 
-body {
+html, body {
   margin: 0;
+  padding: 0;
+}
+
+body {
   font-family: "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif;
   color: var(--text);
   background:
@@ -92,6 +96,19 @@ h2, h3, h4 {
 
 .miniInfo strong {
   font-size: 1.1rem;
+}
+
+.guideList {
+  display: grid;
+  gap: 10px;
+}
+
+.guideItem {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(10, 15, 28, 0.7);
+  border: 1px solid rgba(255,255,255,0.06);
+  color: var(--text);
 }
 
 input, select {
@@ -219,6 +236,23 @@ button:disabled {
   align-items: center;
 }
 
+.marketHeaderWrap {
+  flex-wrap: wrap;
+}
+
+.marketTools {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.marketTools select {
+  width: auto;
+  min-width: 170px;
+  margin-bottom: 0;
+}
+
 .marketList {
   display: flex;
   flex-direction: column;
@@ -278,7 +312,11 @@ button:disabled {
 }
 
 .hidden {
-  display: none;
+  display: none !important;
+}
+
+#appSection[aria-hidden="true"] {
+  display: none !important;
 }
 
 @media (max-width: 900px) {
@@ -304,31 +342,9 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
-  .row {
-    flex-direction: column;
-  }
-}.marketHeaderWrap {
-  flex-wrap: wrap;
-}
-
-.marketTools {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.marketTools select {
-  width: auto;
-  min-width: 170px;
-  margin-bottom: 0;
-}
-
-@media (max-width: 640px) {
+  .row,
   .marketTools {
-    width: 100%;
     flex-direction: column;
-    align-items: stretch;
   }
 
   .marketTools select {
