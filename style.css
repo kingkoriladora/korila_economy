@@ -455,3 +455,12 @@ button:disabled {
     width: 100%;
   }
 }
+.rankingItem.me {
+  border: 2px solid gold;
+  background: rgba(255, 215, 0, 0.12);
+}
+
+#currentRankText {
+  margin: 8px 0 12px;
+  font-weight: bold;
+}
