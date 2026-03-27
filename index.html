@@ -10,13 +10,9 @@
   <main class="container">
     <header class="hero">
       <h1>Korila Economy</h1>
-      <p class="subText">
-        採取して、売買して、資産を増やす経済ゲーム
-        <div id="toastContainer" class="toastContainer"></div>
-      </p>
+      <p class="subText">採取して、売買して、資産を増やす経済ゲーム</p>
     </header>
 
-    <!-- 認証 -->
     <section id="authSection" class="card">
       <h2>ログイン / 登録</h2>
       <div class="formCol">
@@ -25,13 +21,12 @@
         <input id="password" type="password" placeholder="パスワード" />
       </div>
 
-      <div class="row">
+      <div class="row" style="margin-top: 14px;">
         <button id="signupBtn">登録</button>
         <button id="loginBtn">ログイン</button>
       </div>
     </section>
 
-    <!-- アプリ本体 -->
     <section id="appSection" class="hidden" aria-hidden="true">
       <section class="card">
         <div class="topBar">
@@ -40,15 +35,16 @@
             <p id="titleText" class="subText">称号: - / Lv.1</p>
 
             <div class="expWrap">
-  <div class="expTop">
-    <span>経験値</span>
-    <span id="expText">0 / 100</span>
-  </div>
-  <div class="expBar">
-    <div id="expFill" class="expFill"></div>
-  </div>
-</div>
+              <div class="expTop">
+                <span>経験値</span>
+                <span id="expText">0 / 100</span>
+              </div>
+              <div class="expBar">
+                <div id="expFill" class="expFill"></div>
+              </div>
+            </div>
           </div>
+
           <button id="logoutBtn">ログアウト</button>
         </div>
 
@@ -269,6 +265,8 @@
         <p id="banMessage">このアカウントは現在利用停止中です</p>
       </div>
     </div>
+
+    <div id="toastContainer" class="toastContainer"></div>
 
     <p id="message" class="messageArea"></p>
   </main>
