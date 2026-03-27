@@ -68,11 +68,14 @@ const historyList = document.getElementById("historyList");
 const updatePricesBtn = document.getElementById("updatePricesBtn");
 const refreshRankingBtn = document.getElementById("refreshRankingBtn");
 const refreshHistoryBtn = document.getElementById("refreshHistoryBtn");
+const toastContainer = document.getElementById("toastContainer");
 
 dailyLimitText.textContent = DAILY_GATHER_LIMIT;
 
 let uiLocked = false;
 let currentProfile = null;
+let notificationPollTimer = null;
+let latestNotificationId = 0;
 
 function msg(text, isError = false) {
   messageText.textContent = text;
@@ -1097,3 +1100,57 @@ buyIronNpcBtn.addEventListener("click", () =>
     msg(error.message || "初期化エラー", true);
   }
 })();
+
+function showToast(text) {
+  if (!toastContainer) return;
+
+  const div = document.createElement("div");
+  div.className = "toast success";
+  div.textContent = text;
+
+  toastContainer.appendChild(div);
+
+  setTimeout(() => {
+    div.remove();
+  }, 4000);
+}
+
+async function loadNotifications() {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("is_read", false)
+      .order("created_at", { ascending: true });
+
+    if (error) throw error;
+    if (!data || !data.length) return;
+
+    for (const n of data) {
+      if (n.id > latestNotificationId) {
+        showToast(n.text);
+        latestNotificationId = n.id;
+      }
+    }
+
+    const unreadIds = data.map((n) => n.id);
+
+    await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .in("id", unreadIds);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function startNotificationPolling() {
+  if (notificationPollTimer) clearInterval(notificationPollTimer);
+
+  loadNotifications();
+  notificationPollTimer = setInterval(loadNotifications, 10000);
+}
