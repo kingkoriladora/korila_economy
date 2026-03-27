@@ -993,8 +993,8 @@ async function loadRankings() {
   } catch (error) {
     console.error(error);
     msg(error.message || "ランキング取得エラー", true);
- 
-    }
+  }
+}
 
     rankingList.innerHTML = "";
 
