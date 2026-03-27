@@ -921,7 +921,6 @@ async function updatePrices() {
       msg(error.message || "相場更新エラー", true);
     }
   });
-}
 
 async function loadRankings() {
   try {
