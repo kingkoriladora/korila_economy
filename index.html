@@ -26,6 +26,15 @@
       </div>
     </header>
 
+    <section class="card">
+      <h2>遊び方</h2>
+      <div class="guideList">
+        <div class="guideItem">1. 採取して木・石・鉄を集める</div>
+        <div class="guideItem">2. マーケットやNPCショップで資源を売買する</div>
+        <div class="guideItem">3. コインと資源を増やして総資産ランキング上位を目指す</div>
+      </div>
+    </section>
+
     <section id="authSection" class="card">
       <h2>ログイン / 登録</h2>
 
@@ -41,7 +50,7 @@
       <p class="subText">登録したあとログインするとゲーム画面に入れる。</p>
     </section>
 
-    <section id="appSection" class="hidden">
+    <section id="appSection" class="hidden" aria-hidden="true">
       <div class="card">
         <div class="appHeader">
           <div>
@@ -110,6 +119,38 @@
           <button id="sellBtn" class="wideBtn">出品する</button>
         </section>
       </div>
+
+      <section class="card">
+        <div class="marketHeader">
+          <div>
+            <h3>NPCショップ</h3>
+            <p class="subText">相場より少し高い値段で、すぐ資源を買える。</p>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="priceGuide">
+            <h4>木を買う</h4>
+            <p class="subText">NPC価格: 相場 + 5</p>
+            <input id="npcWoodQty" type="number" min="1" max="20" value="1" />
+            <button id="buyWoodNpcBtn" class="wideBtn">木を買う</button>
+          </div>
+
+          <div class="priceGuide">
+            <h4>石を買う</h4>
+            <p class="subText">NPC価格: 相場 + 8</p>
+            <input id="npcStoneQty" type="number" min="1" max="20" value="1" />
+            <button id="buyStoneNpcBtn" class="wideBtn">石を買う</button>
+          </div>
+        </div>
+
+        <div class="priceGuide" style="margin-top: 16px;">
+          <h4>鉄を買う</h4>
+          <p class="subText">NPC価格: 相場 + 12</p>
+          <input id="npcIronQty" type="number" min="1" max="20" value="1" />
+          <button id="buyIronNpcBtn" class="wideBtn">鉄を買う</button>
+        </div>
+      </section>
 
       <div class="grid">
         <section class="card">
