@@ -1162,3 +1162,58 @@ function startNotificationPolling() {
   loadNotifications();
   notificationPollTimer = setInterval(loadNotifications, 10000);
 }
+
+function getNeedExp(level) {
+  return level * 100;
+}
+
+function updateExpUI(profile) {
+  if (!expText || !expFill) return;
+
+  const level = profile.level ?? 1;
+  const exp = profile.exp ?? 0;
+  const need = getNeedExp(level);
+  const percent = Math.min((exp / need) * 100, 100);
+
+  expText.textContent = `${exp} / ${need}`;
+  expFill.style.width = `${percent}%`;
+  updateExpUI(profile);
+}
+
+async function addExp(amount) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || !currentProfile) return;
+
+    let newExp = (currentProfile.exp ?? 0) + amount;
+    let newLevel = currentProfile.level ?? 1;
+    let leveledUp = false;
+
+    while (newExp >= getNeedExp(newLevel)) {
+      newExp -= getNeedExp(newLevel);
+      newLevel += 1;
+      leveledUp = true;
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        exp: newExp,
+        level: newLevel
+      })
+      .eq("id", user.id);
+
+    if (error) throw error;
+
+    currentProfile.exp = newExp;
+    currentProfile.level = newLevel;
+
+    updateExpUI(currentProfile);
+
+    if (leveledUp) {
+      showToast(`レベルアップ！ Lv.${newLevel} になった`);
+    }
+  } catch (error) {
+    console.error(error);
+  }
+}
