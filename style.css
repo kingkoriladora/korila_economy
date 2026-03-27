@@ -111,7 +111,7 @@ h2, h3, h4 {
   color: var(--text);
 }
 
-input, select {
+input, select, textarea {
   width: 100%;
   padding: 14px 15px;
   margin-bottom: 12px;
@@ -121,6 +121,12 @@ input, select {
   color: white;
   outline: none;
   font-size: 15px;
+  font-family: inherit;
+}
+
+textarea {
+  min-height: 90px;
+  resize: vertical;
 }
 
 button {
@@ -303,6 +309,104 @@ button:disabled {
   color: #a5b4fc;
 }
 
+.chatList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.chatItem {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(10, 15, 28, 0.75);
+}
+
+.chatItem.me {
+  border: 1px solid rgba(99,102,241,0.5);
+  background: rgba(79,70,229,0.15);
+}
+
+.chatItem.admin-author {
+  border: 1px solid rgba(250,204,21,0.6);
+  background: rgba(250,204,21,0.12);
+}
+
+.chatMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  color: #a5b4fc;
+  font-size: 13px;
+}
+
+.chatMessage {
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.chatAdminLine {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.chatAdminActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.adminPanel {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(10, 15, 28, 0.65);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.adminUserList {
+  margin-top: 16px;
+}
+
+.adminUserItem {
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 8px;
+  background: rgba(10, 15, 28, 0.55);
+}
+
+.banOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.banBox {
+  background: #111827;
+  padding: 30px;
+  border-radius: 20px;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.1);
+  width: min(92%, 460px);
+}
+
+.banBox h2 {
+  color: #ef4444;
+  margin-bottom: 10px;
+}
+
 #message {
   min-height: 28px;
   text-align: center;
@@ -350,70 +454,4 @@ button:disabled {
   .marketTools select {
     width: 100%;
   }
-}
-textarea {
-  width: 100%;
-  min-height: 90px;
-  resize: vertical;
-  padding: 14px 15px;
-  margin-bottom: 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(10, 15, 28, 0.9);
-  color: white;
-  outline: none;
-  font-size: 15px;
-  font-family: inherit;
-}
-
-.chatList {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.chatItem {
-  padding: 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.07);
-  background: rgba(10, 15, 28, 0.75);
-}
-
-.chatMeta {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-  color: #a5b4fc;
-  font-size: 13px;
-}
-
-.chatMessage {
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: var(--text);
-  line-height: 1.5;
-}
-
-.chatAdminLine {
-  margin-top: 10px;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.chatAdminActions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-
-.adminPanel {
-  margin-top: 16px;
-  padding: 16px;
-  border-radius: 18px;
-  background: rgba(10, 15, 28, 0.65);
-  border: 1px solid rgba(255,255,255,0.06);
 }
