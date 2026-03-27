@@ -88,7 +88,7 @@
         <div class="marketHeader">
           <div>
             <h3>全体チャット</h3>
-            <p class="subText">最新50件。荒らし対策で管理者は削除とBANができる。</p>
+            <p class="subText">最新50件。管理者は削除とBANができる。</p>
           </div>
           <button id="refreshChatBtn">更新</button>
         </div>
@@ -100,13 +100,18 @@
         <button id="sendChatBtn" class="wideBtn">送信</button>
 
         <div id="adminBanPanel" class="adminPanel hidden">
-          <h4>管理者BAN解除</h4>
+          <h4>管理者：BAN解除</h4>
           <input id="banTargetUserId" type="text" placeholder="対象 user_id" />
           <div class="row">
             <button id="unbanChatBtn">チャットBAN解除</button>
             <button id="unbanGameBtn">ゲームBAN解除</button>
           </div>
         </div>
+      </section>
+
+      <section id="adminUserListSection" class="card hidden">
+        <h3>管理者：BAN中ユーザー</h3>
+        <div id="adminUserList" class="adminUserList"></div>
       </section>
 
       <div class="grid">
@@ -255,6 +260,13 @@
         </section>
       </div>
     </section>
+
+    <div id="banOverlay" class="banOverlay hidden">
+      <div class="banBox">
+        <h2>利用停止中</h2>
+        <p id="banMessage">このアカウントは現在利用できません</p>
+      </div>
+    </div>
 
     <p id="message"></p>
   </div>
