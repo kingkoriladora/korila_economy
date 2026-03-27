@@ -31,7 +31,7 @@
       <div class="guideList">
         <div class="guideItem">1. 採取して木・石・鉄を集める</div>
         <div class="guideItem">2. マーケットやNPCショップで資源を売買する</div>
-        <div class="guideItem">3. コインと資源を増やして総資産ランキング上位を目指す</div>
+        <div class="guideItem">3. チャットで交流しながら総資産ランキング上位を目指す</div>
       </div>
     </section>
 
@@ -83,6 +83,31 @@
           </div>
         </div>
       </div>
+
+      <section class="card">
+        <div class="marketHeader">
+          <div>
+            <h3>全体チャット</h3>
+            <p class="subText">最新50件。荒らし対策で管理者は削除とBANができる。</p>
+          </div>
+          <button id="refreshChatBtn">更新</button>
+        </div>
+
+        <div id="chatList" class="chatList"></div>
+
+        <label class="label">メッセージ</label>
+        <textarea id="chatInput" maxlength="100" placeholder="100文字まで"></textarea>
+        <button id="sendChatBtn" class="wideBtn">送信</button>
+
+        <div id="adminBanPanel" class="adminPanel hidden">
+          <h4>管理者BAN解除</h4>
+          <input id="banTargetUserId" type="text" placeholder="対象 user_id" />
+          <div class="row">
+            <button id="unbanChatBtn">チャットBAN解除</button>
+            <button id="unbanGameBtn">ゲームBAN解除</button>
+          </div>
+        </div>
+      </section>
 
       <div class="grid">
         <section class="card">
