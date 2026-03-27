@@ -68,8 +68,9 @@ const historyList = document.getElementById("historyList");
 const updatePricesBtn = document.getElementById("updatePricesBtn");
 const refreshRankingBtn = document.getElementById("refreshRankingBtn");
 const refreshHistoryBtn = document.getElementById("refreshHistoryBtn");
-const toastContainer = document.getElementById("toastContainer");
 
+const currentRankText = document.getElementById("currentRankText");
+const toastContainer = document.getElementById("toastContainer");
 const expText = document.getElementById("expText");
 const expFill = document.getElementById("expFill");
 
@@ -230,12 +231,29 @@ async function createProfileIfMissing(user) {
       is_admin: false,
       level: 1,
       title: "新米採取者",
+      exp: 0,
     })
     .select()
     .single();
 
   if (insertError) throw insertError;
   return inserted;
+}
+
+function getNeedExp(level) {
+  return level * 100;
+}
+
+function updateExpUI(profile) {
+  if (!expText || !expFill) return;
+
+  const level = profile.level ?? 1;
+  const exp = profile.exp ?? 0;
+  const need = getNeedExp(level);
+  const percent = Math.min((exp / need) * 100, 100);
+
+  expText.textContent = `${exp} / ${need}`;
+  expFill.style.width = `${percent}%`;
 }
 
 function updateProfileUI(profile, gatherCount = 0) {
@@ -246,6 +264,7 @@ function updateProfileUI(profile, gatherCount = 0) {
   titleText.textContent = `称号: ${profile.title ?? "新米採取者"} / Lv.${profile.level ?? 1}`;
   gatherCountText.textContent = `${gatherCount} / ${DAILY_GATHER_LIMIT}`;
   gatherBtn.disabled = gatherCount >= DAILY_GATHER_LIMIT || uiLocked;
+  updateExpUI(profile);
 }
 
 async function refreshProfileUI() {
@@ -267,6 +286,100 @@ async function refreshProfileUI() {
   } else {
     adminBanPanel.classList.add("hidden");
     adminUserListSection.classList.add("hidden");
+  }
+}
+
+function showToast(text) {
+  if (!toastContainer) return;
+
+  const div = document.createElement("div");
+  div.className = "toast success";
+  div.textContent = text;
+
+  toastContainer.appendChild(div);
+
+  setTimeout(() => {
+    div.remove();
+  }, 4000);
+}
+
+async function loadNotifications() {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("is_read", false)
+      .order("created_at", { ascending: true });
+
+    if (error) throw error;
+    if (!data || !data.length) return;
+
+    for (const n of data) {
+      if (n.id > latestNotificationId) {
+        showToast(n.text);
+        latestNotificationId = n.id;
+      }
+    }
+
+    const unreadIds = data.map((n) => n.id);
+
+    const { error: updateError } = await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .in("id", unreadIds);
+
+    if (updateError) throw updateError;
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function startNotificationPolling() {
+  if (notificationPollTimer) clearInterval(notificationPollTimer);
+
+  loadNotifications();
+  notificationPollTimer = setInterval(loadNotifications, 10000);
+}
+
+async function addExp(amount) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || !currentProfile) return;
+
+    let newExp = (currentProfile.exp ?? 0) + amount;
+    let newLevel = currentProfile.level ?? 1;
+    let leveledUp = false;
+
+    while (newExp >= getNeedExp(newLevel)) {
+      newExp -= getNeedExp(newLevel);
+      newLevel += 1;
+      leveledUp = true;
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        exp: newExp,
+        level: newLevel,
+      })
+      .eq("id", user.id);
+
+    if (error) throw error;
+
+    currentProfile.exp = newExp;
+    currentProfile.level = newLevel;
+
+    updateExpUI(currentProfile);
+
+    if (leveledUp) {
+      showToast(`レベルアップ！ Lv.${newLevel} になった`);
+    }
+  } catch (error) {
+    console.error(error);
   }
 }
 
@@ -379,20 +492,21 @@ async function login() {
       msg(error.message || "ログインエラー", true);
     }
   });
-  startNotificationPolling();
 }
 
 async function logout() {
   await runLocked(async () => {
     try {
-      if (notificationPollTimer) {
-  clearInterval(notificationPollTimer);
-  notificationPollTimer = null;
-}
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
+      if (notificationPollTimer) {
+        clearInterval(notificationPollTimer);
+        notificationPollTimer = null;
+      }
+
       currentProfile = null;
+      latestNotificationId = 0;
       showApp(false);
       msg("ログアウトした。");
     } catch (error) {
@@ -431,6 +545,7 @@ async function gather() {
       });
       if (rpcError) throw rpcError;
 
+      await addExp(10);
       await refreshProfileUI();
       await loadRankings();
       msg(`${jpName(resourceType)}を1個手に入れた。`);
@@ -471,6 +586,8 @@ async function sellItem() {
 
       if (error) throw error;
 
+      await addExp(5);
+
       sellQuantity.value = "";
       sellPrice.value = "";
 
@@ -493,6 +610,8 @@ async function buyListing(listingId) {
         p_listing_id: listingId,
       });
       if (error) throw error;
+
+      await addExp(8);
 
       await refreshProfileUI();
       await loadMarket();
@@ -544,6 +663,8 @@ async function buyFromNpc(resourceType, quantity) {
         p_quantity: quantity,
       });
       if (error) throw error;
+
+      await addExp(3);
 
       await refreshProfileUI();
       await loadPrices();
@@ -946,8 +1067,6 @@ async function loadRankings() {
 
     rankingList.innerHTML = "";
 
-    const currentRankText = document.getElementById("currentRankText");
-
     if (!data || data.length === 0) {
       rankingList.innerHTML = `<p class="subText">まだランキングがない。</p>`;
       if (currentRankText) {
@@ -1059,6 +1178,7 @@ async function loadUser(user) {
   await loadHistory();
   await loadChat();
   await loadBanUsers();
+  startNotificationPolling();
 }
 
 signupBtn.addEventListener("click", signup);
@@ -1108,112 +1228,3 @@ buyIronNpcBtn.addEventListener("click", () =>
     msg(error.message || "初期化エラー", true);
   }
 })();
-
-function showToast(text) {
-  if (!toastContainer) return;
-
-  const div = document.createElement("div");
-  div.className = "toast success";
-  div.textContent = text;
-
-  toastContainer.appendChild(div);
-
-  setTimeout(() => {
-    div.remove();
-  }, 4000);
-}
-
-async function loadNotifications() {
-  try {
-    const user = await getCurrentUser();
-    if (!user) return;
-
-    const { data, error } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("is_read", false)
-      .order("created_at", { ascending: true });
-
-    if (error) throw error;
-    if (!data || !data.length) return;
-
-    for (const n of data) {
-      if (n.id > latestNotificationId) {
-        showToast(n.text);
-        latestNotificationId = n.id;
-      }
-    }
-
-    const unreadIds = data.map((n) => n.id);
-
-    await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .in("id", unreadIds);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-function startNotificationPolling() {
-  if (notificationPollTimer) clearInterval(notificationPollTimer);
-
-  loadNotifications();
-  notificationPollTimer = setInterval(loadNotifications, 10000);
-}
-
-function getNeedExp(level) {
-  return level * 100;
-}
-
-function updateExpUI(profile) {
-  if (!expText || !expFill) return;
-
-  const level = profile.level ?? 1;
-  const exp = profile.exp ?? 0;
-  const need = getNeedExp(level);
-  const percent = Math.min((exp / need) * 100, 100);
-
-  expText.textContent = `${exp} / ${need}`;
-  expFill.style.width = `${percent}%`;
-  updateExpUI(profile);
-}
-
-async function addExp(amount) {
-  try {
-    const user = await getCurrentUser();
-    if (!user || !currentProfile) return;
-
-    let newExp = (currentProfile.exp ?? 0) + amount;
-    let newLevel = currentProfile.level ?? 1;
-    let leveledUp = false;
-
-    while (newExp >= getNeedExp(newLevel)) {
-      newExp -= getNeedExp(newLevel);
-      newLevel += 1;
-      leveledUp = true;
-    }
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        exp: newExp,
-        level: newLevel
-      })
-      .eq("id", user.id);
-
-    if (error) throw error;
-
-    currentProfile.exp = newExp;
-    currentProfile.level = newLevel;
-
-    updateExpUI(currentProfile);
-
-    if (leveledUp) {
-      showToast(`レベルアップ！ Lv.${newLevel} になった`);
-    }
-  } catch (error) {
-    console.error(error);
-  }
-}
