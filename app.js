@@ -924,70 +924,69 @@ async function updatePrices() {
 }
 
 async function loadRankings() {
-  try { 
+  try {
     const { data, error } = await supabase
       .from("rankings")
       .select("*")
-      .order("total_assets", { ascending: false });
+      .order("total_assets", { ascending: false })
+      .limit(100);
 
     if (error) throw error;
 
-    if (!data || !data.length) {
-      rankingList.innerHTML = `<p class="subText">まだランキングがない。</p>`;
+    rankingList.innerHTML = "";
 
-      const currentRankText = document.getElementById("currentRankText");
+    const currentRankText = document.getElementById("currentRankText");
+
+    if (!data || data.length === 0) {
+      rankingList.innerHTML = `<p class="subText">まだランキングがない。</p>`;
       if (currentRankText) {
         currentRankText.textContent = "自分の順位: まだなし";
       }
       return;
     }
 
-    rankingList.innerHTML = "";
-
-    const top100 = data.slice(0, 100);
-    let myRank = -1;
-    let myData = null;
+    let myRank = null;
+    let myAssets = null;
 
     data.forEach((player, index) => {
-      if (currentProfile && player.id === currentProfile.id) {
-        myRank = index + 1;
-        myData = player;
-      }
-    });
-
-    top100.forEach((player, index) => {
-      const rank = index + 1;
       const item = document.createElement("div");
-      item.className = "marketItem rankingItem";
+      item.className = "marketItem";
 
-      if (currentProfile && player.id === currentProfile.id) {
+      const rank = index + 1;
+      let rankLabel = `#${rank}`;
+      if (rank === 1) rankLabel = "🥇 1位";
+      if (rank === 2) rankLabel = "🥈 2位";
+      if (rank === 3) rankLabel = "🥉 3位";
+
+      // rankings に id がある場合だけ自分判定
+      const isMe =
+        currentProfile &&
+        player.id &&
+        player.id === currentProfile.id;
+
+      if (isMe) {
         item.classList.add("me");
+        myRank = rank;
+        myAssets = player.total_assets;
       }
-
-      const rankLabel =
-        rank === 1 ? "🥇 1位" :
-        rank === 2 ? "🥈 2位" :
-        rank === 3 ? "🥉 3位" :
-        `#${rank}`;
 
       item.innerHTML = `
         <div class="marketInfo">
-          <strong>${rankLabel} ${escapeHtml(player.username)}</strong>
-          <span>総資産: ${player.total_assets}</span>
-          <span>称号: ${escapeHtml(player.title)} / Lv.${player.level}</span>
-          <span>所持: ${player.money} / 木 ${player.wood} / 石 ${player.stone} / 鉄 ${player.iron}</span>
+          <strong><span class="rankNum">${rankLabel}</span> ${escapeHtml(player.username ?? "unknown")}</strong>
+          <span>総資産: ${player.total_assets ?? 0}</span>
+          <span>称号: ${escapeHtml(player.title ?? "なし")} / Lv.${player.level ?? 1}</span>
+          <span>所持: ${player.money ?? 0} / 木 ${player.wood ?? 0} / 石 ${player.stone ?? 0} / 鉄 ${player.iron ?? 0}</span>
         </div>
       `;
 
       rankingList.appendChild(item);
     });
 
-    const currentRankText = document.getElementById("currentRankText");
     if (currentRankText) {
-      if (myRank !== -1 && myData) {
-        currentRankText.textContent = `自分の順位: ${myRank}位 / 総資産: ${myData.total_assets}`;
+      if (myRank !== null) {
+        currentRankText.textContent = `自分の順位: ${myRank}位 / 総資産: ${myAssets}`;
       } else {
-        currentRankText.textContent = "自分の順位: ランキング圏外";
+        currentRankText.textContent = "自分の順位: 100位圏外、またはID未対応";
       }
     }
   } catch (error) {
@@ -995,7 +994,6 @@ async function loadRankings() {
     msg(error.message || "ランキング取得エラー", true);
   }
 }
-
     rankingList.innerHTML = "";
 
     data.forEach((player, index) => {
