@@ -27,6 +27,13 @@ const sellBtn = document.getElementById("sellBtn");
 const newUsernameInput = document.getElementById("newUsername");
 const changeUsernameBtn = document.getElementById("changeUsernameBtn");
 
+const npcWoodQty = document.getElementById("npcWoodQty");
+const npcStoneQty = document.getElementById("npcStoneQty");
+const npcIronQty = document.getElementById("npcIronQty");
+const buyWoodNpcBtn = document.getElementById("buyWoodNpcBtn");
+const buyStoneNpcBtn = document.getElementById("buyStoneNpcBtn");
+const buyIronNpcBtn = document.getElementById("buyIronNpcBtn");
+
 const refreshMarketBtn = document.getElementById("refreshMarketBtn");
 const marketSort = document.getElementById("marketSort");
 const marketList = document.getElementById("marketList");
@@ -55,6 +62,18 @@ let uiLocked = false;
 function msg(text, isError = false) {
   messageText.textContent = text;
   messageText.style.color = isError ? "#fca5a5" : "#bfdbfe";
+}
+
+function showApp(show) {
+  if (show) {
+    authSection.classList.add("hidden");
+    appSection.classList.remove("hidden");
+    appSection.setAttribute("aria-hidden", "false");
+  } else {
+    authSection.classList.remove("hidden");
+    appSection.classList.add("hidden");
+    appSection.setAttribute("aria-hidden", "true");
+  }
 }
 
 function jpName(resource) {
@@ -93,6 +112,9 @@ function setButtonsDisabled(disabled) {
     updatePricesBtn,
     refreshRankingBtn,
     refreshHistoryBtn,
+    buyWoodNpcBtn,
+    buyStoneNpcBtn,
+    buyIronNpcBtn,
   ].forEach((btn) => {
     if (btn) btn.disabled = disabled;
   });
@@ -202,11 +224,7 @@ async function refreshProfileUI() {
   welcomeText.textContent = `ようこそ、${profile.username}`;
   updateProfileUI(profile, gatherCount);
 
-  if (profile.is_admin) {
-    updatePricesBtn.textContent = "相場更新（管理者）";
-  } else {
-    updatePricesBtn.textContent = "相場更新";
-  }
+  updatePricesBtn.textContent = profile.is_admin ? "相場更新（管理者）" : "相場更新";
 }
 
 function sortListings(listings) {
@@ -299,8 +317,7 @@ async function logout() {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
-      authSection.classList.remove("hidden");
-      appSection.classList.add("hidden");
+      showApp(false);
       marketList.innerHTML = "";
       priceBoard.innerHTML = "";
       rankingList.innerHTML = "";
@@ -452,6 +469,37 @@ async function changeUsername() {
   });
 }
 
+async function buyFromNpc(resource, quantity) {
+  await runLocked(async () => {
+    try {
+      if (!Number.isInteger(quantity) || quantity <= 0) {
+        msg("数量を正しく入れて。", true);
+        return;
+      }
+
+      if (quantity > 20) {
+        msg("NPCショップは1回20個まで。", true);
+        return;
+      }
+
+      const { data, error } = await supabase.rpc("buy_from_npc", {
+        p_resource_type: resource,
+        p_quantity: quantity,
+      });
+
+      if (error) throw error;
+
+      await refreshProfileUI();
+      await loadRankings();
+
+      msg(`${jpName(data.resource_type)}を${data.quantity}個買った。合計 ${data.total_price} コイン。`);
+    } catch (error) {
+      console.error(error);
+      msg(error.message || "NPCショップ購入エラー", true);
+    }
+  });
+}
+
 async function loadMarket() {
   try {
     const user = await getCurrentUser();
@@ -465,7 +513,7 @@ async function loadMarket() {
 
     const sortedListings = sortListings(listings || []);
 
-    if (!sortedListings || sortedListings.length === 0) {
+    if (!sortedListings.length) {
       marketList.innerHTML = `<p class="subText">まだ出品がない。</p>`;
       return;
     }
@@ -523,7 +571,7 @@ async function loadPrices() {
 
     priceBoard.innerHTML = "";
 
-    if (!data || data.length === 0) {
+    if (!data || !data.length) {
       priceBoard.innerHTML = `<p class="subText">相場データがない。</p>`;
       return;
     }
@@ -570,7 +618,7 @@ async function loadRankings() {
 
     if (error) throw error;
 
-    if (!data || data.length === 0) {
+    if (!data || !data.length) {
       rankingList.innerHTML = `<p class="subText">まだランキングがない。</p>`;
       return;
     }
@@ -606,7 +654,7 @@ async function loadHistory() {
 
     if (error) throw error;
 
-    if (!data || data.length === 0) {
+    if (!data || !data.length) {
       historyList.innerHTML = `<p class="subText">まだ取引履歴がない。</p>`;
       return;
     }
@@ -633,8 +681,7 @@ async function loadHistory() {
 }
 
 async function loadUser(user) {
-  authSection.classList.add("hidden");
-  appSection.classList.remove("hidden");
+  showApp(true);
 
   const profile = await createProfileIfMissing(user);
   const gatherCount = await getTodayGatherCount(user.id);
@@ -661,8 +708,20 @@ updatePricesBtn.addEventListener("click", updatePrices);
 refreshRankingBtn.addEventListener("click", loadRankings);
 refreshHistoryBtn.addEventListener("click", loadHistory);
 
+buyWoodNpcBtn.addEventListener("click", () =>
+  buyFromNpc("wood", Number(npcWoodQty.value))
+);
+buyStoneNpcBtn.addEventListener("click", () =>
+  buyFromNpc("stone", Number(npcStoneQty.value))
+);
+buyIronNpcBtn.addEventListener("click", () =>
+  buyFromNpc("iron", Number(npcIronQty.value))
+);
+
 (async function init() {
   try {
+    showApp(false);
+
     const {
       data: { session },
       error,
@@ -675,6 +734,7 @@ refreshHistoryBtn.addEventListener("click", loadHistory);
     }
   } catch (error) {
     console.error(error);
+    showApp(false);
     msg(error.message || "初期化エラー", true);
   }
 })();
