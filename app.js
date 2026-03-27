@@ -70,6 +70,9 @@ const refreshRankingBtn = document.getElementById("refreshRankingBtn");
 const refreshHistoryBtn = document.getElementById("refreshHistoryBtn");
 const toastContainer = document.getElementById("toastContainer");
 
+const expText = document.getElementById("expText");
+const expFill = document.getElementById("expFill");
+
 dailyLimitText.textContent = DAILY_GATHER_LIMIT;
 
 let uiLocked = false;
