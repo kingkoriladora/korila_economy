@@ -9,8 +9,14 @@
 <body>
   <main class="container">
     <header class="hero">
-      <h1>Korila Economy</h1>
-      <p class="subText">採取して、売買して、資産を増やす経済ゲーム</p>
+      <div class="heroText">
+        <h1>Korila Economy</h1>
+        <p class="subText">採取して、売買して、資産を増やす経済ゲーム</p>
+      </div>
+
+      <section class="heroBanner">
+        <img src="images/banner.png" alt="Korila Economy バナー" />
+      </section>
     </header>
 
     <section id="authSection" class="card">
@@ -57,6 +63,29 @@
             <li>相場を見て高いタイミングで売る</li>
             <li>ランキング上位を目指す</li>
           </ol>
+        </div>
+
+        <div class="resourceIcons">
+          <div class="resourceCard">
+            <img src="images/wood.png" alt="木" />
+            <span>木</span>
+          </div>
+          <div class="resourceCard">
+            <img src="images/stone.png" alt="石" />
+            <span>石</span>
+          </div>
+          <div class="resourceCard">
+            <img src="images/iron.png" alt="鉄" />
+            <span>鉄</span>
+          </div>
+          <div class="resourceCard">
+            <img src="images/gold.png" alt="金" />
+            <span>金</span>
+          </div>
+          <div class="resourceCard">
+            <img src="images/diamond.png" alt="ダイヤ" />
+            <span>ダイヤ</span>
+          </div>
         </div>
       </section>
 
@@ -133,6 +162,14 @@
             <div>
               <h3>NPCショップ</h3>
               <p class="subText">固定価格でNPCから購入できます</p>
+            </div>
+          </div>
+
+          <div class="npcHero">
+            <img src="images/npc.png" alt="NPC店主" class="npcImage" />
+            <div>
+              <h4>NPC店主</h4>
+              <p class="subText">固定価格で安全に資源を買えるショップ</p>
             </div>
           </div>
 
@@ -218,7 +255,10 @@
       <section class="card">
         <div class="marketHeader">
           <div>
-            <h3>チャット</h3>
+            <h3 class="iconTitle">
+              <img src="images/chat.png" alt="チャット" class="titleIcon" />
+              チャット
+            </h3>
             <p class="subText">プレイヤー同士で会話できます</p>
           </div>
           <button id="refreshChatBtn">更新</button>
@@ -235,7 +275,10 @@
       <section id="adminBanPanel" class="card hidden">
         <div class="marketHeader">
           <div>
-            <h3>管理者BANパネル</h3>
+            <h3 class="iconTitle">
+              <img src="images/admin.png" alt="管理者" class="titleIcon" />
+              管理者BANパネル
+            </h3>
             <p class="subText">user_id を入れてBAN解除できます</p>
           </div>
         </div>
@@ -256,6 +299,19 @@
         </div>
 
         <div id="adminUserList" class="marketList"></div>
+      </section>
+
+      <section class="card uiMockSection">
+        <div class="sectionHeader">
+          <div>
+            <h3>スマホUIイメージ</h3>
+            <p class="subText">スマホ表示の完成イメージ</p>
+          </div>
+        </div>
+
+        <div class="uiMockWrap">
+          <img src="images/mobile-ui.png" alt="スマホUIモック" class="uiMockImage" />
+        </div>
       </section>
     </section>
 
