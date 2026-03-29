@@ -27,9 +27,14 @@ body {
   color: var(--text);
   font-family: Inter, "Hiragino Sans", "Yu Gothic UI", "Yu Gothic", sans-serif;
   background:
+    linear-gradient(rgba(5, 8, 22, 0.82), rgba(5, 8, 22, 0.9)),
+    url("images/bg.png"),
     radial-gradient(circle at top left, rgba(124, 58, 237, 0.22), transparent 30%),
     radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 26%),
     linear-gradient(135deg, var(--bg-3), var(--bg-1) 45%, #020617 100%);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
   min-height: 100%;
 }
 
@@ -126,6 +131,9 @@ select:focus {
 
 .hero {
   margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .hero h1 {
@@ -133,6 +141,20 @@ select:focus {
   font-size: clamp(2.4rem, 4vw, 4rem);
   font-weight: 800;
   letter-spacing: -0.04em;
+}
+
+.heroBanner {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+.heroBanner img {
+  width: 100%;
+  display: block;
+  object-fit: cover;
 }
 
 .subText {
@@ -244,6 +266,34 @@ select:focus {
   padding-left: 20px;
   color: #dbe7f5;
   line-height: 1.8;
+}
+
+.resourceIcons {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.resourceCard {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
+  padding: 14px;
+  text-align: center;
+}
+
+.resourceCard img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 8px;
+}
+
+.resourceCard span {
+  color: #e2e8f0;
+  font-weight: 700;
 }
 
 button {
@@ -464,6 +514,25 @@ button:disabled {
   gap: 10px;
 }
 
+.npcHero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 14px 0 16px;
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.npcImage {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 18px;
+  flex-shrink: 0;
+}
+
 .npcRow {
   grid-template-columns: 60px 1fr auto;
   padding: 12px 14px;
@@ -497,6 +566,35 @@ button:disabled {
   border-radius: 999px;
   background: linear-gradient(90deg, #22c55e, #3b82f6);
   transition: width 0.25s ease;
+}
+
+.iconTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.titleIcon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.uiMockSection {
+  margin-top: 18px;
+}
+
+.uiMockWrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.uiMockImage {
+  width: min(320px, 100%);
+  display: block;
+  border-radius: 28px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
 }
 
 .toastContainer {
@@ -616,6 +714,10 @@ button:disabled {
   .priceBoard {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .resourceIcons {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
@@ -627,7 +729,8 @@ button:disabled {
   .statsGrid,
   .twoCol,
   .priceBoard,
-  .grid {
+  .grid,
+  .resourceIcons {
     grid-template-columns: 1fr;
   }
 
@@ -637,6 +740,11 @@ button:disabled {
 
   .npcRow {
     grid-template-columns: 1fr;
+  }
+
+  .npcHero {
+    flex-direction: column;
+    text-align: center;
   }
 
   .topBar,
@@ -665,21 +773,8 @@ button:disabled {
   .chatItem {
     max-width: 100%;
   }
-}
 
-.marketList .marketItem:nth-child(1) {
-  background: linear-gradient(135deg, rgba(255,215,0,0.2), rgba(255,255,255,0.05));
-  border: 2px solid gold;
-  transform: scale(1.03);
-  box-shadow: 0 0 25px rgba(255,215,0,0.4);
-}
-
-.marketList .marketItem:nth-child(2) {
-  background: linear-gradient(135deg, rgba(192,192,192,0.2), rgba(255,255,255,0.05));
-  border: 2px solid silver;
-}
-
-.marketList .marketItem:nth-child(3) {
-  background: linear-gradient(135deg, rgba(205,127,50,0.2), rgba(255,255,255,0.05));
-  border: 2px solid #cd7f32;
+  .uiMockImage {
+    width: min(260px, 100%);
+  }
 }
