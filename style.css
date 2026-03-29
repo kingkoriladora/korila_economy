@@ -769,3 +769,12 @@ button:disabled {
     width: min(260px, 100%);
   }
 }
+
+.npcImage {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #0f172a, #1e1b4b);
+  padding: 6px;
+}
