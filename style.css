@@ -571,23 +571,6 @@ button:disabled {
   object-fit: contain;
 }
 
-.uiMockSection {
-  margin-top: 18px;
-}
-
-.uiMockWrap {
-  display: flex;
-  justify-content: center;
-  margin-top: 14px;
-}
-
-.uiMockImage {
-  width: min(320px, 100%);
-  display: block;
-  border-radius: 28px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-}
-
 .toastContainer {
   position: fixed;
   top: 20px;
