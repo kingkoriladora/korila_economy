@@ -6,88 +6,73 @@ const SUPABASE_ANON_KEY = "sb_publishable_kZHi2lLOxs3RBKmy_Mfb7A_qecCt4HP";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const DAILY_GATHER_LIMIT = 20;
+const RESOURCE_LABELS = {
+  wood: "木",
+  stone: "石",
+  iron: "鉄",
+  gold: "金",
+  diamond: "ダイヤ"
+};
 
-const authSection = document.getElementById("authSection");
-const appSection = document.getElementById("appSection");
+const NPC_PRICES = {
+  wood: 12,
+  stone: 22,
+  iron: 55,
+  gold: 130,
+  diamond: 320
+};
 
-const usernameInput = document.getElementById("username");
-const emailInput = document.getElementById("email");
-const passwordInput = document.getElementById("password");
-
-const signupBtn = document.getElementById("signupBtn");
-const loginBtn = document.getElementById("loginBtn");
-const logoutBtn = document.getElementById("logoutBtn");
-const gatherBtn = document.getElementById("gatherBtn");
-
-const sellResource = document.getElementById("sellResource");
-const sellQuantity = document.getElementById("sellQuantity");
-const sellPrice = document.getElementById("sellPrice");
-const sellBtn = document.getElementById("sellBtn");
-
-const newUsernameInput = document.getElementById("newUsername");
-const changeUsernameBtn = document.getElementById("changeUsernameBtn");
-
-const npcWoodQty = document.getElementById("npcWoodQty");
-const npcStoneQty = document.getElementById("npcStoneQty");
-const npcIronQty = document.getElementById("npcIronQty");
-const buyWoodNpcBtn = document.getElementById("buyWoodNpcBtn");
-const buyStoneNpcBtn = document.getElementById("buyStoneNpcBtn");
-const buyIronNpcBtn = document.getElementById("buyIronNpcBtn");
-
-const refreshMarketBtn = document.getElementById("refreshMarketBtn");
-const marketSort = document.getElementById("marketSort");
-const marketList = document.getElementById("marketList");
-
-const chatList = document.getElementById("chatList");
-const chatInput = document.getElementById("chatInput");
-const sendChatBtn = document.getElementById("sendChatBtn");
-const refreshChatBtn = document.getElementById("refreshChatBtn");
-const adminBanPanel = document.getElementById("adminBanPanel");
-const banTargetUserId = document.getElementById("banTargetUserId");
-const unbanChatBtn = document.getElementById("unbanChatBtn");
-const unbanGameBtn = document.getElementById("unbanGameBtn");
-
-const adminUserListSection = document.getElementById("adminUserListSection");
-const adminUserList = document.getElementById("adminUserList");
-const banOverlay = document.getElementById("banOverlay");
-const banMessage = document.getElementById("banMessage");
-
-const welcomeText = document.getElementById("welcomeText");
-const titleText = document.getElementById("titleText");
-const moneyText = document.getElementById("moneyText");
-const woodText = document.getElementById("woodText");
-const stoneText = document.getElementById("stoneText");
-const ironText = document.getElementById("ironText");
-const gatherCountText = document.getElementById("gatherCountText");
-const dailyLimitText = document.getElementById("dailyLimitText");
-const messageText = document.getElementById("message");
-
-const priceBoard = document.getElementById("priceBoard");
-const rankingList = document.getElementById("rankingList");
-const historyList = document.getElementById("historyList");
-const updatePricesBtn = document.getElementById("updatePricesBtn");
-const refreshRankingBtn = document.getElementById("refreshRankingBtn");
-const refreshHistoryBtn = document.getElementById("refreshHistoryBtn");
-
-const currentRankText = document.getElementById("currentRankText");
-const toastContainer = document.getElementById("toastContainer");
-const expText = document.getElementById("expText");
-const expFill = document.getElementById("expFill");
-
-dailyLimitText.textContent = DAILY_GATHER_LIMIT;
-
-let uiLocked = false;
+let currentUser = null;
 let currentProfile = null;
-let notificationPollTimer = null;
-let latestNotificationId = 0;
+let currentPrices = null;
+let isAdmin = false;
 
-function msg(text, isError = false) {
-  messageText.textContent = text;
-  messageText.style.color = isError ? "#fca5a5" : "#bfdbfe";
+const $ = (id) => document.getElementById(id);
+
+const authSection = $("authSection");
+const appSection = $("appSection");
+const banOverlay = $("banOverlay");
+const banMessage = $("banMessage");
+const messageArea = $("message");
+const toastContainer = $("toastContainer");
+
+const signupBtn = $("signupBtn");
+const loginBtn = $("loginBtn");
+const logoutBtn = $("logoutBtn");
+const gatherBtn = $("gatherBtn");
+const changeUsernameBtn = $("changeUsernameBtn");
+const sellBtn = $("sellBtn");
+const refreshMarketBtn = $("refreshMarketBtn");
+const refreshRankingBtn = $("refreshRankingBtn");
+const refreshHistoryBtn = $("refreshHistoryBtn");
+const refreshChatBtn = $("refreshChatBtn");
+const sendChatBtn = $("sendChatBtn");
+const updatePricesBtn = $("updatePricesBtn");
+const unbanChatBtn = $("unbanChatBtn");
+const unbanGameBtn = $("unbanGameBtn");
+
+function setMessage(text) {
+  messageArea.textContent = text || "";
 }
 
-function escapeHtml(value) {
-  return String(value)
+function showToast(text, type = "success") {
+  const div = document.createElement("div");
+  div.className = `toast ${type}`;
+  div.textContent = text;
+  toastContainer.appendChild(div);
+
+  setTimeout(() => {
+    div.style.opacity = "0";
+    div.style.transform = "translateY(-8px)";
+  }, 2400);
+
+  setTimeout(() => {
+    div.remove();
+  }, 2900);
+}
+
+function escapeHtml(text = "") {
+  return String(text)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
@@ -95,1136 +80,870 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-function showApp(show) {
-  if (show) {
-    authSection.classList.add("hidden");
-    appSection.classList.remove("hidden");
-    appSection.setAttribute("aria-hidden", "false");
-  } else {
-    authSection.classList.remove("hidden");
-    appSection.classList.add("hidden");
-    appSection.setAttribute("aria-hidden", "true");
+function formatNumber(value) {
+  return Number(value || 0).toLocaleString("ja-JP");
+}
+
+function expNeeded(level) {
+  return Math.max(100, level * 100);
+}
+
+function resourceAmount(profile, key) {
+  return Number(profile?.[key] || 0);
+}
+
+function toggleApp(isLoggedIn) {
+  authSection.classList.toggle("hidden", isLoggedIn);
+  appSection.classList.toggle("hidden", !isLoggedIn);
+  appSection.setAttribute("aria-hidden", String(!isLoggedIn));
+}
+
+function showBanOverlay(text) {
+  banMessage.textContent = text;
+  banOverlay.classList.remove("hidden");
+}
+
+function hideBanOverlay() {
+  banOverlay.classList.add("hidden");
+}
+
+function renderProfile() {
+  if (!currentProfile) return;
+
+  $("welcomeText").textContent = `ようこそ、${currentProfile.username || "プレイヤー"}さん`;
+  $("titleText").textContent = `称号: ${currentProfile.title || "-"} / Lv.${currentProfile.level || 1}`;
+  $("moneyText").textContent = formatNumber(currentProfile.money);
+
+  $("woodText").textContent = formatNumber(currentProfile.wood);
+  $("stoneText").textContent = formatNumber(currentProfile.stone);
+  $("ironText").textContent = formatNumber(currentProfile.iron);
+  $("goldText").textContent = formatNumber(currentProfile.gold);
+  $("diamondText").textContent = formatNumber(currentProfile.diamond);
+
+  const currentExp = Number(currentProfile.exp || 0);
+  const level = Number(currentProfile.level || 1);
+  const need = expNeeded(level);
+  $("expText").textContent = `${currentExp} / ${need}`;
+  $("expFill").style.width = `${Math.min(100, (currentExp / need) * 100)}%`;
+
+  $("gatherCountText").textContent = `${currentProfile.gather_count || 0} / ${DAILY_GATHER_LIMIT}`;
+  $("dailyLimitText").textContent = String(DAILY_GATHER_LIMIT);
+
+  const adminBanPanel = $("adminBanPanel");
+  const adminUserListSection = $("adminUserListSection");
+  adminBanPanel.classList.toggle("hidden", !isAdmin);
+  adminUserListSection.classList.toggle("hidden", !isAdmin);
+}
+
+function renderPrices() {
+  const board = $("priceBoard");
+  if (!currentPrices) {
+    board.innerHTML = `<div class="emptyText">相場を読み込み中...</div>`;
+    return;
+  }
+
+  board.innerHTML = Object.entries(RESOURCE_LABELS).map(([key, label]) => {
+    const value = Number(currentPrices[key] || 0);
+    return `
+      <div class="priceBox">
+        <span>${label}</span>
+        <strong>¥${formatNumber(value)}</strong>
+      </div>
+    `;
+  }).join("");
+}
+
+function assetTotalOfRow(row) {
+  return Number(row.total_assets || 0);
+}
+
+function renderRanking(rows) {
+  const list = $("rankingList");
+  if (!rows || rows.length === 0) {
+    list.innerHTML = `<div class="emptyText">ランキングはまだありません</div>`;
+    $("currentRankText").textContent = "自分の順位: -";
+    return;
+  }
+
+  list.innerHTML = rows.map((row, index) => {
+    const extraClass =
+      index === 0 ? "rankingTop1" :
+      index === 1 ? "rankingTop2" :
+      index === 2 ? "rankingTop3" : "";
+
+    const isMe = row.user_id === currentUser?.id;
+    return `
+      <div class="marketItem ${extraClass} ${isMe ? "me" : ""}">
+        <div class="marketInfo">
+          <div><span class="rankNum">${row.rank_no}位</span> ${escapeHtml(row.username || "プレイヤー")}</div>
+          <div>総資産: ¥${formatNumber(assetTotalOfRow(row))}</div>
+          <div class="assetLine">
+            現金: ¥${formatNumber(row.money)} / 木:${formatNumber(row.wood)} / 石:${formatNumber(row.stone)} / 鉄:${formatNumber(row.iron)} / 金:${formatNumber(row.gold)} / ダイヤ:${formatNumber(row.diamond)}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  const myRow = rows.find((row) => row.user_id === currentUser?.id);
+  $("currentRankText").textContent = myRow
+    ? `自分の順位: ${myRow.rank_no}位 / 総資産: ¥${formatNumber(myRow.total_assets)}`
+    : "自分の順位: 100位圏外";
+}
+
+function renderHistory(rows) {
+  const list = $("historyList");
+  if (!rows || rows.length === 0) {
+    list.innerHTML = `<div class="emptyText">取引履歴はまだありません</div>`;
+    return;
+  }
+
+  list.innerHTML = rows.map((row) => {
+    const sourceText = row.source === "npc" ? "NPC" : "マーケット";
+    const buyerText = row.buyer_name || "誰か";
+    const sellerText = row.seller_name || "誰か";
+
+    return `
+      <div class="marketItem">
+        <div class="marketInfo">
+          <strong>${escapeHtml(RESOURCE_LABELS[row.resource] || row.resource)}</strong>
+          <div>${escapeHtml(sellerText)} → ${escapeHtml(buyerText)}</div>
+          <div>${formatNumber(row.quantity)}個 / 1個 ¥${formatNumber(row.price_each)} / 合計 ¥${formatNumber(row.total_price)}</div>
+          <div class="subText">${sourceText} / ${new Date(row.created_at).toLocaleString("ja-JP")}</div>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderMarket(rows) {
+  const list = $("marketList");
+  if (!rows || rows.length === 0) {
+    list.innerHTML = `<div class="emptyText">出品はまだありません</div>`;
+    return;
+  }
+
+  list.innerHTML = rows.map((row) => {
+    const isMe = row.seller_id === currentUser?.id;
+
+    return `
+      <div class="marketItem ${isMe ? "me" : ""}">
+        <div class="marketInfo">
+          <strong>${escapeHtml(RESOURCE_LABELS[row.resource] || row.resource)}</strong>
+          <div>出品者: ${escapeHtml(row.seller_name || "プレイヤー")}</div>
+          <div>数量: ${formatNumber(row.quantity)} / 1個 ¥${formatNumber(row.price)}</div>
+          <div>合計: ¥${formatNumber(Number(row.quantity) * Number(row.price))}</div>
+          <div class="subText">${new Date(row.created_at).toLocaleString("ja-JP")}</div>
+        </div>
+        <div class="marketActions">
+          ${isMe
+            ? `<button class="smallBtn" data-cancel-id="${row.id}">出品取り消し</button>`
+            : `<button class="smallBtn" data-buy-id="${row.id}">購入</button>`
+          }
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  list.querySelectorAll("[data-buy-id]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = Number(btn.dataset.buyId);
+      await buyMarketItem(id);
+    });
+  });
+
+  list.querySelectorAll("[data-cancel-id]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = Number(btn.dataset.cancelId);
+      await cancelMarketItem(id);
+    });
+  });
+}
+
+function renderChat(rows) {
+  const list = $("chatList");
+  if (!rows || rows.length === 0) {
+    list.innerHTML = `<div class="emptyText">まだメッセージがありません</div>`;
+    return;
+  }
+
+  list.innerHTML = rows.map((row) => {
+    const isMe = row.user_id === currentUser?.id;
+    const isAdminAuthor = !!row.is_admin;
+    const itemClass = `${isMe ? "me" : ""} ${isAdminAuthor ? "admin-author" : ""}`.trim();
+
+    return `
+      <div class="chatItem ${itemClass}">
+        <div class="chatMeta">
+          <strong>${escapeHtml(row.username || "プレイヤー")}</strong>
+          <span>${new Date(row.created_at).toLocaleString("ja-JP")}</span>
+        </div>
+        <div class="chatMessage">${escapeHtml(row.message)}</div>
+        ${
+          isAdminAuthor
+            ? `<div class="chatAdminLine">管理者</div>`
+            : ""
+        }
+        ${
+          isAdmin && !isMe
+            ? `
+              <div class="chatAdminActions">
+                <button class="smallBtn chatDeleteBtn" data-chat-delete-id="${row.id}">削除</button>
+                <button class="smallBtn chatBanBtn" data-chat-ban-id="${row.user_id}">チャットBAN</button>
+                <button class="smallBtn chatBanBtn" data-game-ban-id="${row.user_id}">ゲームBAN</button>
+              </div>
+            `
+            : ""
+        }
+      </div>
+    `;
+  }).join("");
+
+  if (isAdmin) {
+    list.querySelectorAll("[data-chat-delete-id]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await deleteChatMessage(Number(btn.dataset.chatDeleteId));
+      });
+    });
+
+    list.querySelectorAll("[data-chat-ban-id]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await setBanState(btn.dataset.chatBanId, "chat");
+      });
+    });
+
+    list.querySelectorAll("[data-game-ban-id]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await setBanState(btn.dataset.gameBanId, "game");
+      });
+    });
   }
 }
 
-function jpName(resource) {
-  if (resource === "wood") return "木";
-  if (resource === "stone") return "石";
-  if (resource === "iron") return "鉄";
-  return resource;
-}
-
-function formatDate(dateString) {
-  const d = new Date(dateString);
-  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(
-    d.getDate()
-  ).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(
-    d.getMinutes()
-  ).padStart(2, "0")}`;
-}
-
-function todayString() {
-  const today = new Date();
-  const y = today.getFullYear();
-  const m = String(today.getMonth() + 1).padStart(2, "0");
-  const d = String(today.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function setButtonsDisabled(disabled) {
-  [
-    signupBtn,
-    loginBtn,
-    logoutBtn,
-    gatherBtn,
-    sellBtn,
-    changeUsernameBtn,
-    refreshMarketBtn,
-    updatePricesBtn,
-    refreshRankingBtn,
-    refreshHistoryBtn,
-    buyWoodNpcBtn,
-    buyStoneNpcBtn,
-    buyIronNpcBtn,
-    sendChatBtn,
-    refreshChatBtn,
-    unbanChatBtn,
-    unbanGameBtn,
-  ].forEach((btn) => {
-    if (btn) btn.disabled = disabled;
-  });
-
-  document.querySelectorAll(".buyBtn, .cancelBtn, .chatDeleteBtn, .chatBanBtn").forEach((btn) => {
-    btn.disabled = disabled;
-  });
-}
-
-async function runLocked(task) {
-  if (uiLocked) return;
-  uiLocked = true;
-  setButtonsDisabled(true);
-
-  try {
-    await task();
-  } finally {
-    uiLocked = false;
-    setButtonsDisabled(false);
+function renderBanList(rows) {
+  const list = $("adminUserList");
+  if (!rows || rows.length === 0) {
+    list.innerHTML = `<div class="emptyText">BAN中ユーザーはいません</div>`;
+    return;
   }
+
+  list.innerHTML = rows.map((row) => {
+    const tags = [];
+    if (row.is_chat_banned) tags.push("チャットBAN");
+    if (row.is_game_banned) tags.push("ゲームBAN");
+
+    return `
+      <div class="marketItem">
+        <div class="marketInfo">
+          <strong>${escapeHtml(row.username || "プレイヤー")}</strong>
+          <div>user_id: ${escapeHtml(row.id)}</div>
+          <div>${tags.join(" / ")}</div>
+        </div>
+      </div>
+    `;
+  }).join("");
 }
 
-async function getCurrentUser() {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error) throw error;
-  return user;
-}
-
-async function getProfile(userId) {
+async function fetchProfile() {
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
-    .eq("id", userId)
+    .eq("id", currentUser.id)
     .single();
 
   if (error) throw error;
-  return data;
+
+  currentProfile = data;
+  isAdmin = !!data.is_admin;
 }
 
-async function getTodayGatherCount(userId) {
-  const { count, error } = await supabase
-    .from("daily_gathers")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .eq("gather_date", todayString());
-
-  if (error) throw error;
-  return count ?? 0;
-}
-
-async function createProfileIfMissing(user) {
-  const { data: existing, error: selectError } = await supabase
-    .from("profiles")
+async function fetchPrices() {
+  const { data, error } = await supabase
+    .from("market_prices")
     .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (selectError) throw selectError;
-  if (existing) return existing;
-
-  const username =
-    usernameInput.value.trim() ||
-    user.email?.split("@")[0] ||
-    "player";
-
-  const { data: inserted, error: insertError } = await supabase
-    .from("profiles")
-    .insert({
-      id: user.id,
-      username,
-      money: 100,
-      wood: 0,
-      stone: 0,
-      iron: 0,
-      is_admin: false,
-      level: 1,
-      title: "新米採取者",
-      exp: 0,
-    })
-    .select()
+    .eq("id", 1)
     .single();
 
-  if (insertError) throw insertError;
-  return inserted;
+  if (error) throw error;
+  currentPrices = data;
 }
 
-function getNeedExp(level) {
-  return level * 100;
-}
+async function fetchMarket() {
+  const sortValue = $("marketSort").value;
+  let query = supabase
+    .from("market")
+    .select("*")
+    .eq("sold_out", false);
 
-function updateExpUI(profile) {
-  if (!expText || !expFill) return;
-
-  const level = profile.level ?? 1;
-  const exp = profile.exp ?? 0;
-  const need = getNeedExp(level);
-  const percent = Math.min((exp / need) * 100, 100);
-
-  expText.textContent = `${exp} / ${need}`;
-  expFill.style.width = `${percent}%`;
-}
-
-function updateProfileUI(profile, gatherCount = 0) {
-  moneyText.textContent = profile.money ?? 0;
-  woodText.textContent = profile.wood ?? 0;
-  stoneText.textContent = profile.stone ?? 0;
-  ironText.textContent = profile.iron ?? 0;
-  titleText.textContent = `称号: ${profile.title ?? "新米採取者"} / Lv.${profile.level ?? 1}`;
-  gatherCountText.textContent = `${gatherCount} / ${DAILY_GATHER_LIMIT}`;
-  gatherBtn.disabled = gatherCount >= DAILY_GATHER_LIMIT || uiLocked;
-  updateExpUI(profile);
-}
-
-async function refreshProfileUI() {
-  const user = await getCurrentUser();
-  if (!user) return;
-
-  const profile = await getProfile(user.id);
-  const gatherCount = await getTodayGatherCount(user.id);
-
-  currentProfile = profile;
-  welcomeText.textContent = `ようこそ、${profile.username}`;
-  updateProfileUI(profile, gatherCount);
-
-  updatePricesBtn.textContent = profile.is_admin ? "相場更新（管理者）" : "相場更新";
-
-  if (profile.is_admin) {
-    adminBanPanel.classList.remove("hidden");
-    adminUserListSection.classList.remove("hidden");
+  if (sortValue === "priceAsc") {
+    query = query.order("price", { ascending: true });
+  } else if (sortValue === "priceDesc") {
+    query = query.order("price", { ascending: false });
+  } else if (sortValue === "quantityDesc") {
+    query = query.order("quantity", { ascending: false });
   } else {
-    adminBanPanel.classList.add("hidden");
-    adminUserListSection.classList.add("hidden");
+    query = query.order("created_at", { ascending: false });
   }
+
+  const { data, error } = await query.limit(100);
+  if (error) throw error;
+  renderMarket(data);
 }
 
-function showToast(text) {
-  if (!toastContainer) return;
-
-  const div = document.createElement("div");
-  div.className = "toast success";
-  div.textContent = text;
-
-  toastContainer.appendChild(div);
-
-  setTimeout(() => {
-    div.remove();
-  }, 4000);
+async function fetchRanking() {
+  const { data, error } = await supabase.rpc("get_rankings");
+  if (error) throw error;
+  renderRanking(data || []);
 }
 
-async function loadNotifications() {
-  try {
-    const user = await getCurrentUser();
-    if (!user) return;
+async function fetchHistory() {
+  const { data, error } = await supabase
+    .from("trade_history_view")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(50);
 
-    const { data, error } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("is_read", false)
-      .order("created_at", { ascending: true });
-
-    if (error) throw error;
-    if (!data || !data.length) return;
-
-    for (const n of data) {
-      if (n.id > latestNotificationId) {
-        showToast(n.text);
-        latestNotificationId = n.id;
-      }
-    }
-
-    const unreadIds = data.map((n) => n.id);
-
-    const { error: updateError } = await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .in("id", unreadIds);
-
-    if (updateError) throw updateError;
-  } catch (error) {
-    console.error(error);
-  }
+  if (error) throw error;
+  renderHistory(data || []);
 }
 
-function startNotificationPolling() {
-  if (notificationPollTimer) clearInterval(notificationPollTimer);
+async function fetchChat() {
+  const { data, error } = await supabase
+    .from("chat_messages_view")
+    .select("*")
+    .order("created_at", { ascending: true })
+    .limit(100);
 
-  loadNotifications();
-  notificationPollTimer = setInterval(loadNotifications, 10000);
+  if (error) throw error;
+  renderChat(data || []);
 }
 
-async function addExp(amount) {
-  try {
-    const user = await getCurrentUser();
-    if (!user || !currentProfile) return;
+async function fetchBanList() {
+  if (!isAdmin) return;
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, username, is_chat_banned, is_game_banned")
+    .or("is_chat_banned.eq.true,is_game_banned.eq.true")
+    .order("updated_at", { ascending: false });
 
-    let newExp = (currentProfile.exp ?? 0) + amount;
-    let newLevel = currentProfile.level ?? 1;
-    let leveledUp = false;
-
-    while (newExp >= getNeedExp(newLevel)) {
-      newExp -= getNeedExp(newLevel);
-      newLevel += 1;
-      leveledUp = true;
-    }
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        exp: newExp,
-        level: newLevel,
-      })
-      .eq("id", user.id);
-
-    if (error) throw error;
-
-    currentProfile.exp = newExp;
-    currentProfile.level = newLevel;
-
-    updateExpUI(currentProfile);
-
-    if (leveledUp) {
-      showToast(`レベルアップ！ Lv.${newLevel} になった`);
-    }
-  } catch (error) {
-    console.error(error);
-  }
+  if (error) throw error;
+  renderBanList(data || []);
 }
 
-async function checkBanStatus() {
-  try {
-    const { data, error } = await supabase.rpc("get_my_ban_status");
-    if (error) throw error;
+async function refreshAll() {
+  await fetchProfile();
+  renderProfile();
 
-    if (data?.game_banned) {
-      banOverlay.classList.remove("hidden");
-      banMessage.textContent = data.game_reason
-        ? `ゲームBAN中: ${data.game_reason}`
-        : "このアカウントは現在利用停止中です";
-    } else {
-      banOverlay.classList.add("hidden");
-    }
-
-    if (data?.chat_banned) {
-      msg(
-        data.chat_reason
-          ? `チャットBAN中: ${data.chat_reason}`
-          : "チャットBAN中です",
-        true
-      );
-    }
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-function sortListings(listings) {
-  const sorted = [...listings];
-  const mode = marketSort.value;
-
-  if (mode === "priceAsc") {
-    sorted.sort((a, b) => a.price_per_unit - b.price_per_unit || b.id - a.id);
-  } else if (mode === "priceDesc") {
-    sorted.sort((a, b) => b.price_per_unit - a.price_per_unit || b.id - a.id);
-  } else if (mode === "quantityDesc") {
-    sorted.sort((a, b) => b.quantity - a.quantity || b.id - a.id);
+  if (currentProfile.is_game_banned) {
+    showBanOverlay("このアカウントはゲームBAN中です");
   } else {
-    sorted.sort((a, b) => b.id - a.id);
+    hideBanOverlay();
   }
 
-  return sorted;
+  await Promise.all([
+    fetchPrices(),
+    fetchMarket(),
+    fetchRanking(),
+    fetchHistory(),
+    fetchChat(),
+    fetchBanList()
+  ]);
+
+  renderPrices();
+  renderProfile();
+}
+
+async function ensureLoggedIn() {
+  const { data } = await supabase.auth.getSession();
+  const session = data.session;
+  if (!session?.user) {
+    toggleApp(false);
+    return;
+  }
+
+  currentUser = session.user;
+  toggleApp(true);
+
+  try {
+    await refreshAll();
+    setMessage("読み込み完了");
+  } catch (error) {
+    console.error(error);
+    setMessage(error.message || "読み込みに失敗しました");
+    showToast(error.message || "読み込みに失敗しました", "error");
+  }
 }
 
 async function signup() {
-  await runLocked(async () => {
-    try {
-      const username = usernameInput.value.trim();
-      const email = emailInput.value.trim();
-      const password = passwordInput.value.trim();
+  const username = $("username").value.trim();
+  const email = $("email").value.trim();
+  const password = $("password").value;
 
-      if (!username || !email || !password) {
-        msg("ユーザー名、メール、パスワードを全部入れて。", true);
-        return;
-      }
+  if (!username || !email || !password) {
+    showToast("ユーザー名・メール・パスワードを入力してください", "warn");
+    return;
+  }
 
-      if (username.length < 2 || username.length > 16) {
-        msg("ユーザー名は2〜16文字にして。", true);
-        return;
-      }
-
-      if (password.length < 6) {
-        msg("パスワードは6文字以上にして。", true);
-        return;
-      }
-
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-      if (!data.user) throw new Error("登録に失敗した");
-
-      await createProfileIfMissing(data.user);
-      msg("登録できた。次はログインして。");
-    } catch (error) {
-      console.error(error);
-      msg(error.message || "登録エラー", true);
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { username }
     }
   });
+
+  if (error) {
+    showToast(error.message, "error");
+    setMessage(error.message);
+    return;
+  }
+
+  showToast("登録しました。メール確認が必要な場合は確認してください");
+  setMessage("登録しました。ログインしてください");
 }
 
 async function login() {
-  await runLocked(async () => {
-    try {
-      const email = emailInput.value.trim();
-      const password = passwordInput.value.trim();
+  const email = $("email").value.trim();
+  const password = $("password").value;
 
-      if (!email || !password) {
-        msg("メールとパスワードを入れて。", true);
-        return;
-      }
+  if (!email || !password) {
+    showToast("メールとパスワードを入力してください", "warn");
+    return;
+  }
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-      if (error) throw error;
-      if (!data.user) throw new Error("ログイン失敗");
+  if (error) {
+    showToast(error.message, "error");
+    setMessage(error.message);
+    return;
+  }
 
-      await loadUser(data.user);
-      msg("ログインできた。");
-    } catch (error) {
-      console.error(error);
-      msg(error.message || "ログインエラー", true);
-    }
-  });
+  showToast("ログインしました");
+  setMessage("ログインしました");
 }
 
 async function logout() {
-  await runLocked(async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-
-      if (notificationPollTimer) {
-        clearInterval(notificationPollTimer);
-        notificationPollTimer = null;
-      }
-
-      currentProfile = null;
-      latestNotificationId = 0;
-      showApp(false);
-      msg("ログアウトした。");
-    } catch (error) {
-      console.error(error);
-      msg(error.message || "ログアウトエラー", true);
-    }
-  });
+  await supabase.auth.signOut();
+  currentUser = null;
+  currentProfile = null;
+  isAdmin = false;
+  toggleApp(false);
+  hideBanOverlay();
+  setMessage("ログアウトしました");
+  showToast("ログアウトしました");
 }
 
-async function gather() {
-  await runLocked(async () => {
-    try {
-      const user = await getCurrentUser();
-      if (!user) throw new Error("ログインが必要");
+async function gatherResource() {
+  if (!currentUser) return;
+  if (currentProfile?.is_game_banned) {
+    showToast("ゲームBAN中です", "error");
+    return;
+  }
 
-      const gatherCount = await getTodayGatherCount(user.id);
-      if (gatherCount >= DAILY_GATHER_LIMIT) {
-        msg("今日はもう採取上限や。", true);
-        return;
-      }
+  gatherBtn.disabled = true;
+  try {
+    const { data, error } = await supabase.rpc("gather_resource", {
+      p_user_id: currentUser.id
+    });
 
-      const roll = Math.random();
-      let resourceType = "wood";
-      if (roll >= 0.75 && roll < 0.95) resourceType = "stone";
-      if (roll >= 0.95) resourceType = "iron";
+    if (error) throw error;
 
-      const { error: insertGatherError } = await supabase.from("daily_gathers").insert({
-        user_id: user.id,
-        gather_date: todayString(),
-      });
-      if (insertGatherError) throw insertGatherError;
+    await fetchProfile();
+    renderProfile();
 
-      const { error: rpcError } = await supabase.rpc("apply_gather_reward", {
-        p_user_id: user.id,
-        p_resource_type: resourceType,
-      });
-      if (rpcError) throw rpcError;
+    const resource = data?.resource;
+    const amount = data?.amount ?? 1;
+    showToast(`${RESOURCE_LABELS[resource] || resource} を ${amount}個 採取しました`);
+    setMessage(`${RESOURCE_LABELS[resource] || resource} を ${amount}個 採取しました`);
 
-      await addExp(10);
-      await refreshProfileUI();
-      await loadRankings();
-      msg(`${jpName(resourceType)}を1個手に入れた。`);
-    } catch (error) {
-      console.error(error);
-      msg(error.message || "採取エラー", true);
-    }
-  });
-}
-
-async function sellItem() {
-  await runLocked(async () => {
-    try {
-      const quantity = Number(sellQuantity.value);
-      const pricePerUnit = Number(sellPrice.value);
-      const resourceType = sellResource.value;
-
-      if (!["wood", "stone", "iron"].includes(resourceType)) {
-        msg("資源を選んで。", true);
-        return;
-      }
-
-      if (!Number.isInteger(quantity) || quantity <= 0) {
-        msg("数量を正しく入れて。", true);
-        return;
-      }
-
-      if (!Number.isInteger(pricePerUnit) || pricePerUnit <= 0) {
-        msg("単価を正しく入れて。", true);
-        return;
-      }
-
-      const { error } = await supabase.rpc("create_listing", {
-        p_resource_type: resourceType,
-        p_quantity: quantity,
-        p_price_per_unit: pricePerUnit,
-      });
-
-      if (error) throw error;
-
-      await addExp(5);
-
-      sellQuantity.value = "";
-      sellPrice.value = "";
-
-      await refreshProfileUI();
-      await loadMarket();
-      await loadPrices();
-      await loadRankings();
-      msg("出品した。");
-    } catch (error) {
-      console.error(error);
-      msg(error.message || "出品エラー", true);
-    }
-  });
-}
-
-async function buyListing(listingId) {
-  await runLocked(async () => {
-    try {
-      const { error } = await supabase.rpc("buy_listing", {
-        p_listing_id: listingId,
-      });
-      if (error) throw error;
-
-      await addExp(8);
-
-      await refreshProfileUI();
-      await loadMarket();
-      await loadPrices();
-      await loadRankings();
-      await loadHistory();
-      msg("購入した。");
-    } catch (error) {
-      console.error(error);
-      msg(error.message || "購入エラー", true);
-    }
-  });
-}
-
-async function cancelListing(listingId) {
-  await runLocked(async () => {
-    try {
-      const { error } = await supabase.rpc("cancel_listing", {
-        p_listing_id: listingId,
-      });
-      if (error) throw error;
-
-      await refreshProfileUI();
-      await loadMarket();
-      await loadPrices();
-      msg("出品を取り消した。");
-    } catch (error) {
-      console.error(error);
-      msg(error.message || "取り消しエラー", true);
-    }
-  });
-}
-
-async function buyFromNpc(resourceType, quantity) {
-  await runLocked(async () => {
-    try {
-      if (!["wood", "stone", "iron"].includes(resourceType)) {
-        msg("資源が不正。", true);
-        return;
-      }
-
-      if (!Number.isInteger(quantity) || quantity <= 0) {
-        msg("NPC購入数を正しく入れて。", true);
-        return;
-      }
-
-      const { error } = await supabase.rpc("buy_from_npc", {
-        p_resource_type: resourceType,
-        p_quantity: quantity,
-      });
-      if (error) throw error;
-
-      await addExp(3);
-
-      await refreshProfileUI();
-      await loadPrices();
-      await loadRankings();
-      msg(`NPCショップで${jpName(resourceType)}を${quantity}個買った。`);
-    } catch (error) {
-      console.error(error);
-      msg(error.message || "NPC購入エラー", true);
-    }
-  });
+    await Promise.all([fetchRanking(), fetchHistory()]);
+  } catch (error) {
+    console.error(error);
+    showToast(error.message || "採取に失敗しました", "error");
+    setMessage(error.message || "採取に失敗しました");
+  } finally {
+    gatherBtn.disabled = false;
+  }
 }
 
 async function changeUsername() {
-  await runLocked(async () => {
-    try {
-      const newName = newUsernameInput.value.trim();
-
-      if (newName.length < 2 || newName.length > 16) {
-        msg("新しいユーザー名は2〜16文字にして。", true);
-        return;
-      }
-
-      const { error } = await supabase.rpc("change_username", {
-        p_new_username: newName,
-      });
-      if (error) throw error;
-
-      newUsernameInput.value = "";
-      await refreshProfileUI();
-      await loadRankings();
-      msg("ユーザー名を変えた。");
-    } catch (error) {
-      console.error(error);
-      msg(error.message || "ユーザー名変更エラー", true);
-    }
-  });
-}
-
-async function sendChatMessage() {
-  await runLocked(async () => {
-    try {
-      const text = chatInput.value.trim();
-
-      if (!text) {
-        msg("メッセージを入れて。", true);
-        return;
-      }
-
-      const { error } = await supabase.rpc("send_chat_message", {
-        p_message: text,
-      });
-
-      if (error) throw error;
-
-      chatInput.value = "";
-      await loadChat();
-      await checkBanStatus();
-      msg("チャットを送信した。");
-    } catch (error) {
-      console.error(error);
-      msg(error.message || "チャット送信エラー", true);
-    }
-  });
-}
-
-async function deleteChatMessage(messageId) {
-  await runLocked(async () => {
-    try {
-      const { error } = await supabase.rpc("delete_chat_message", {
-        p_message_id: messageId,
-      });
-
-      if (error) throw error;
-
-      await loadChat();
-      msg("チャットを削除した。");
-    } catch (error) {
-      console.error(error);
-      msg(error.message || "チャット削除エラー", true);
-    }
-  });
-}
-
-async function banUser(targetUserId, banType) {
-  await runLocked(async () => {
-    try {
-      const reason = window.prompt(
-        `${banType === "chat" ? "チャットBAN" : "ゲームBAN"}の理由を入れて`
-      );
-
-      if (!reason || !reason.trim()) {
-        msg("理由を入れて。", true);
-        return;
-      }
-
-      const minutesText = window.prompt("BAN時間（分）。永久なら空欄でOK");
-      const minutes =
-        minutesText && minutesText.trim() !== "" ? Number(minutesText) : null;
-
-      if (minutes !== null && (!Number.isInteger(minutes) || minutes <= 0)) {
-        msg("分数を正しく入れて。", true);
-        return;
-      }
-
-      const { error } = await supabase.rpc("ban_user", {
-        p_target_user_id: targetUserId,
-        p_ban_type: banType,
-        p_reason: reason.trim(),
-        p_minutes: minutes,
-      });
-
-      if (error) throw error;
-
-      await loadChat();
-      await loadBanUsers();
-      await checkBanStatus();
-      msg(`${banType === "chat" ? "チャットBAN" : "ゲームBAN"}した。`);
-    } catch (error) {
-      console.error(error);
-      msg(error.message || "BANエラー", true);
-    }
-  });
-}
-
-async function unbanUser(banType) {
-  await runLocked(async () => {
-    try {
-      const targetUserId = banTargetUserId.value.trim();
-
-      if (!targetUserId) {
-        msg("解除する user_id を入れて。", true);
-        return;
-      }
-
-      const { error } = await supabase.rpc("unban_user", {
-        p_target_user_id: targetUserId,
-        p_ban_type: banType,
-      });
-
-      if (error) throw error;
-
-      await loadBanUsers();
-      await checkBanStatus();
-      msg(`${banType === "chat" ? "チャットBAN" : "ゲームBAN"}を解除した。`);
-    } catch (error) {
-      console.error(error);
-      msg(error.message || "BAN解除エラー", true);
-    }
-  });
-}
-
-async function loadBanUsers() {
-  try {
-    if (!currentProfile?.is_admin) {
-      adminUserList.innerHTML = "";
-      return;
-    }
-
-    const { data, error } = await supabase.rpc("get_active_bans_admin");
-    if (error) throw error;
-
-    adminUserList.innerHTML = "";
-
-    if (!data || !data.length) {
-      adminUserList.innerHTML = `<p class="subText">BAN中ユーザーはいない。</p>`;
-      return;
-    }
-
-    data.forEach((ban) => {
-      const div = document.createElement("div");
-      div.className = "marketItem";
-      div.innerHTML = `
-        <div class="marketInfo">
-          <strong>${escapeHtml(ban.username_snapshot || ban.user_id)}</strong>
-          <span>user_id: ${escapeHtml(ban.user_id)}</span>
-          <span>種類: ${escapeHtml(ban.ban_type)}</span>
-          <span>理由: ${escapeHtml(ban.reason || "理由なし")}</span>
-          <span>期限: ${ban.expires_at ? escapeHtml(formatDate(ban.expires_at)) : "永久"}</span>
-        </div>
-      `;
-      adminUserList.appendChild(div);
-    });
-  } catch (error) {
-    console.error(error);
-    msg(error.message || "BAN一覧取得エラー", true);
+  const newUsername = $("newUsername").value.trim();
+  if (!newUsername) {
+    showToast("新しいユーザー名を入力してください", "warn");
+    return;
   }
-}
 
-async function loadChat() {
   try {
-    if (!currentProfile) return;
-
-    let messages;
-    let error;
-
-    if (currentProfile.is_admin) {
-      const result = await supabase.rpc("get_chat_messages_admin");
-      messages = result.data;
-      error = result.error;
-    } else {
-      const result = await supabase.rpc("get_chat_messages");
-      messages = result.data;
-      error = result.error;
-    }
+    const { error } = await supabase
+      .from("profiles")
+      .update({ username: newUsername })
+      .eq("id", currentUser.id);
 
     if (error) throw error;
 
-    if (!messages || messages.length === 0) {
-      chatList.innerHTML = `<p class="subText">まだチャットがない。</p>`;
-      return;
-    }
-
-    chatList.innerHTML = "";
-
-    [...messages].reverse().forEach((item) => {
-      const wrapper = document.createElement("div");
-      wrapper.className = "chatItem";
-
-      if (currentProfile && item.user_id && item.user_id === currentProfile.id) {
-        wrapper.classList.add("me");
-      }
-
-      if (item.username_snapshot === "admin" || item.username_snapshot === "管理者") {
-        wrapper.classList.add("admin-author");
-      }
-
-      const meta = document.createElement("div");
-      meta.className = "chatMeta";
-      meta.innerHTML = `
-        <strong>${escapeHtml(item.username_snapshot)}</strong>
-        <span>${escapeHtml(formatDate(item.created_at))}</span>
-      `;
-
-      const body = document.createElement("div");
-      body.className = "chatMessage";
-      body.textContent = item.message;
-
-      wrapper.appendChild(meta);
-      wrapper.appendChild(body);
-
-      if (currentProfile.is_admin && item.user_id) {
-        const adminLine = document.createElement("div");
-        adminLine.className = "chatAdminLine";
-        adminLine.textContent = `user_id: ${item.user_id}`;
-        wrapper.appendChild(adminLine);
-
-        const actions = document.createElement("div");
-        actions.className = "chatAdminActions";
-
-        const delBtn = document.createElement("button");
-        delBtn.className = "smallBtn chatDeleteBtn";
-        delBtn.textContent = "削除";
-        delBtn.addEventListener("click", () => deleteChatMessage(item.chat_id));
-
-        const chatBanBtn = document.createElement("button");
-        chatBanBtn.className = "smallBtn chatBanBtn";
-        chatBanBtn.textContent = "チャットBAN";
-        chatBanBtn.addEventListener("click", () => banUser(item.user_id, "chat"));
-
-        const gameBanBtn = document.createElement("button");
-        gameBanBtn.className = "smallBtn chatBanBtn";
-        gameBanBtn.textContent = "ゲームBAN";
-        gameBanBtn.addEventListener("click", () => banUser(item.user_id, "game"));
-
-        actions.appendChild(delBtn);
-        actions.appendChild(chatBanBtn);
-        actions.appendChild(gameBanBtn);
-
-        wrapper.appendChild(actions);
-      }
-
-      chatList.appendChild(wrapper);
-    });
-
-    setButtonsDisabled(uiLocked);
+    $("newUsername").value = "";
+    await fetchProfile();
+    renderProfile();
+    showToast("ユーザー名を変更しました");
   } catch (error) {
     console.error(error);
-    msg(error.message || "チャット取得エラー", true);
+    showToast(error.message || "ユーザー名変更に失敗しました", "error");
   }
 }
 
-async function loadMarket() {
+async function createListing() {
+  const resource = $("sellResource").value;
+  const quantity = Number($("sellQuantity").value);
+  const price = Number($("sellPrice").value);
+
+  if (!resource || !RESOURCE_LABELS[resource]) {
+    showToast("資源を選んでください", "warn");
+    return;
+  }
+  if (!Number.isInteger(quantity) || quantity <= 0) {
+    showToast("数量を正しく入力してください", "warn");
+    return;
+  }
+  if (!Number.isInteger(price) || price <= 0) {
+    showToast("価格を正しく入力してください", "warn");
+    return;
+  }
+  if (quantity > 9999) {
+    showToast("数量が大きすぎます", "warn");
+    return;
+  }
+  if (price > 9999999) {
+    showToast("価格が大きすぎます", "warn");
+    return;
+  }
+  if (resourceAmount(currentProfile, resource) < quantity) {
+    showToast("所持数が足りません", "error");
+    return;
+  }
+
   try {
-    const user = await getCurrentUser();
-    if (!user) return;
+    const newValue = resourceAmount(currentProfile, resource) - quantity;
 
-    const { data: listings, error } = await supabase
-      .from("market_listings")
-      .select("*");
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ [resource]: newValue })
+      .eq("id", currentUser.id);
 
-    if (error) throw error;
+    if (updateError) throw updateError;
 
-    const sortedListings = sortListings(listings || []);
+    const { error: insertError } = await supabase
+      .from("market")
+      .insert({
+        seller_id: currentUser.id,
+        seller_name: currentProfile.username,
+        resource,
+        quantity,
+        price
+      });
 
-    if (!sortedListings.length) {
-      marketList.innerHTML = `<p class="subText">まだ出品がない。</p>`;
-      return;
-    }
+    if (insertError) throw insertError;
 
-    marketList.innerHTML = "";
+    $("sellQuantity").value = "";
+    $("sellPrice").value = "";
 
-    for (const listing of sortedListings) {
-      const total = listing.quantity * listing.price_per_unit;
-      const item = document.createElement("div");
-      item.className = "marketItem";
+    await Promise.all([fetchProfile(), fetchMarket(), fetchRanking()]);
+    renderProfile();
 
-      item.innerHTML = `
-        <div class="marketInfo">
-          <strong>${escapeHtml(jpName(listing.resource_type))}</strong>
-          <span>数量: ${listing.quantity}</span>
-          <span>単価: ${listing.price_per_unit}</span>
-          <span>合計: ${total}</span>
-          <span>${listing.seller_id === user.id ? "あなたの出品" : "出品中"}</span>
-        </div>
-        <div class="marketActions">
-          ${
-            listing.seller_id === user.id
-              ? `<button data-id="${listing.id}" class="cancelBtn smallBtn">取り消し</button>`
-              : `<button data-id="${listing.id}" class="buyBtn smallBtn">買う</button>`
-          }
-        </div>
-      `;
-
-      marketList.appendChild(item);
-    }
-
-    document.querySelectorAll(".buyBtn").forEach((btn) => {
-      btn.addEventListener("click", () => buyListing(Number(btn.dataset.id)));
-    });
-
-    document.querySelectorAll(".cancelBtn").forEach((btn) => {
-      btn.addEventListener("click", () => cancelListing(Number(btn.dataset.id)));
-    });
-
-    setButtonsDisabled(uiLocked);
+    showToast(`${RESOURCE_LABELS[resource]}を出品しました`);
+    setMessage(`${RESOURCE_LABELS[resource]}を出品しました`);
   } catch (error) {
     console.error(error);
-    msg(error.message || "マーケット取得エラー", true);
+    showToast(error.message || "出品に失敗しました", "error");
+    setMessage(error.message || "出品に失敗しました");
   }
 }
 
-async function loadPrices() {
+async function cancelMarketItem(id) {
   try {
-    const { data, error } = await supabase
-      .from("market_prices")
+    const { data: row, error: getError } = await supabase
+      .from("market")
       .select("*")
-      .order("resource_type", { ascending: true });
+      .eq("id", id)
+      .eq("seller_id", currentUser.id)
+      .eq("sold_out", false)
+      .single();
 
-    if (error) throw error;
+    if (getError) throw getError;
 
-    priceBoard.innerHTML = "";
+    const restored = resourceAmount(currentProfile, row.resource) + Number(row.quantity);
 
-    if (!data || !data.length) {
-      priceBoard.innerHTML = `<p class="subText">相場データがない。</p>`;
-      return;
-    }
+    const { error: updateProfileError } = await supabase
+      .from("profiles")
+      .update({ [row.resource]: restored })
+      .eq("id", currentUser.id);
 
-    for (const row of data) {
-      const box = document.createElement("div");
-      box.className = "priceBox";
-      box.innerHTML = `
-        <span>${escapeHtml(jpName(row.resource_type))}</span>
-        <strong>${row.current_price}</strong>
-        <span>範囲: ${row.min_price}〜${row.max_price}</span>
-      `;
-      priceBoard.appendChild(box);
-    }
+    if (updateProfileError) throw updateProfileError;
+
+    const { error: updateMarketError } = await supabase
+      .from("market")
+      .update({ sold_out: true })
+      .eq("id", id)
+      .eq("seller_id", currentUser.id);
+
+    if (updateMarketError) throw updateMarketError;
+
+    await Promise.all([fetchProfile(), fetchMarket(), fetchRanking()]);
+    renderProfile();
+
+    showToast("出品を取り消しました");
   } catch (error) {
     console.error(error);
-    msg(error.message || "相場取得エラー", true);
+    showToast(error.message || "取り消しに失敗しました", "error");
   }
 }
 
-async function updatePrices() {
-  await runLocked(async () => {
-    try {
-      const { error } = await supabase.rpc("update_market_prices");
-      if (error) throw error;
-
-      await loadPrices();
-      await loadRankings();
-      await checkBanStatus();
-      msg("相場を更新した。");
-    } catch (error) {
-      console.error(error);
-      msg(error.message || "相場更新エラー", true);
-    }
-  });
-}
-
-async function loadRankings() {
+async function buyMarketItem(listingId) {
   try {
-    const { data, error } = await supabase
-      .from("rankings")
-      .select("*")
-      .order("total_assets", { ascending: false })
-      .limit(100);
-
-    if (error) throw error;
-
-    rankingList.innerHTML = "";
-
-    if (!data || data.length === 0) {
-      rankingList.innerHTML = `<p class="subText">まだランキングがない。</p>`;
-      if (currentRankText) {
-        currentRankText.textContent = "自分の順位: まだなし";
-      }
-      return;
-    }
-
-    let myRank = null;
-    let myAssets = null;
-
-    data.forEach((player, index) => {
-      const item = document.createElement("div");
-      item.className = "marketItem";
-
-      const rank = index + 1;
-      let rankLabel = `#${rank}`;
-      if (rank === 1) rankLabel = "🥇 1位";
-      if (rank === 2) rankLabel = "🥈 2位";
-      if (rank === 3) rankLabel = "🥉 3位";
-
-      const isMe =
-        currentProfile &&
-        player.id &&
-        player.id === currentProfile.id;
-
-      if (isMe) {
-        item.classList.add("me");
-        myRank = rank;
-        myAssets = player.total_assets;
-      }
-
-      item.innerHTML = `
-        <div class="marketInfo">
-          <strong><span class="rankNum">${rankLabel}</span> ${escapeHtml(player.username ?? "unknown")}</strong>
-          <span>総資産: ${player.total_assets ?? 0}</span>
-          <span>称号: ${escapeHtml(player.title ?? "なし")} / Lv.${player.level ?? 1}</span>
-          <span>所持: ${player.money ?? 0} / 木 ${player.wood ?? 0} / 石 ${player.stone ?? 0} / 鉄 ${player.iron ?? 0}</span>
-        </div>
-      `;
-
-      rankingList.appendChild(item);
+    const { data, error } = await supabase.rpc("buy_market_item", {
+      p_listing_id: listingId,
+      p_buyer_id: currentUser.id
     });
 
-    if (currentRankText) {
-      if (myRank !== null) {
-        currentRankText.textContent = `自分の順位: ${myRank}位 / 総資産: ${myAssets}`;
-      } else {
-        currentRankText.textContent = "自分の順位: 100位圏外、またはID未対応";
-      }
-    }
+    if (error) throw error;
+
+    await Promise.all([
+      fetchProfile(),
+      fetchMarket(),
+      fetchRanking(),
+      fetchHistory()
+    ]);
+    renderProfile();
+
+    showToast(`${RESOURCE_LABELS[data.resource]}を購入しました`);
+    setMessage(`${RESOURCE_LABELS[data.resource]}を購入しました`);
   } catch (error) {
     console.error(error);
-    msg(error.message || "ランキング取得エラー", true);
+    showToast(error.message || "購入に失敗しました", "error");
+    setMessage(error.message || "購入に失敗しました");
   }
 }
 
-async function loadHistory() {
+async function buyNpcResource(resource, qtyInputId) {
+  const qty = Number($(qtyInputId).value);
+
+  if (!Number.isInteger(qty) || qty <= 0) {
+    showToast("数量を正しく入力してください", "warn");
+    return;
+  }
+
+  const priceEach = NPC_PRICES[resource];
+  const total = priceEach * qty;
+
+  if (Number(currentProfile.money) < total) {
+    showToast("お金が足りません", "error");
+    return;
+  }
+
+  const updates = {
+    money: Number(currentProfile.money) - total,
+    [resource]: resourceAmount(currentProfile, resource) + qty
+  };
+
   try {
-    const { data, error } = await supabase
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update(updates)
+      .eq("id", currentUser.id);
+
+    if (updateError) throw updateError;
+
+    const { error: historyError } = await supabase
       .from("trade_history")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(15);
+      .insert({
+        buyer_id: currentUser.id,
+        buyer_name: currentProfile.username,
+        seller_id: null,
+        seller_name: "NPC商人",
+        resource,
+        quantity: qty,
+        price_each: priceEach,
+        total_price: total,
+        source: "npc"
+      });
 
-    if (error) throw error;
+    if (historyError) throw historyError;
 
-    if (!data || !data.length) {
-      historyList.innerHTML = `<p class="subText">まだ取引履歴がない。</p>`;
-      return;
-    }
+    await Promise.all([fetchProfile(), fetchRanking(), fetchHistory()]);
+    renderProfile();
 
-    historyList.innerHTML = "";
-
-    data.forEach((trade) => {
-      const item = document.createElement("div");
-      item.className = "marketItem";
-      item.innerHTML = `
-        <div class="marketInfo">
-          <strong>${escapeHtml(jpName(trade.resource_type))} × ${trade.quantity}</strong>
-          <span>単価: ${trade.price_per_unit} / 合計: ${trade.total_price}</span>
-          <span>手数料: ${trade.fee} / 売り手受取: ${trade.seller_receive}</span>
-          <span>${escapeHtml(formatDate(trade.created_at))}</span>
-        </div>
-      `;
-      historyList.appendChild(item);
-    });
+    showToast(`${RESOURCE_LABELS[resource]}を${qty}個購入しました`);
   } catch (error) {
     console.error(error);
-    msg(error.message || "履歴取得エラー", true);
+    showToast(error.message || "NPC購入に失敗しました", "error");
   }
 }
 
-async function loadUser(user) {
-  showApp(true);
+async function updateMarketPrices() {
+  try {
+    const { error } = await supabase.rpc("update_market_prices", {
+      p_user_id: currentUser.id
+    });
+    if (error) throw error;
 
-  const profile = await createProfileIfMissing(user);
-  const gatherCount = await getTodayGatherCount(user.id);
+    await fetchPrices();
+    renderPrices();
+    await fetchRanking();
 
-  currentProfile = profile;
-  welcomeText.textContent = `ようこそ、${profile.username}`;
-  updateProfileUI(profile, gatherCount);
+    showToast("相場を更新しました");
+  } catch (error) {
+    console.error(error);
+    showToast(error.message || "相場更新に失敗しました", "error");
+  }
+}
 
-  await refreshProfileUI();
-  await checkBanStatus();
-  await loadPrices();
-  await loadMarket();
-  await loadRankings();
-  await loadHistory();
-  await loadChat();
-  await loadBanUsers();
-  startNotificationPolling();
+async function sendChat() {
+  const message = $("chatInput").value.trim();
+  if (!message) {
+    showToast("メッセージを入力してください", "warn");
+    return;
+  }
+  if (message.length > 200) {
+    showToast("200文字以内にしてください", "warn");
+    return;
+  }
+  if (currentProfile?.is_chat_banned) {
+    showToast("チャットBAN中です", "error");
+    return;
+  }
+
+  try {
+    const { error } = await supabase
+      .from("chat_messages")
+      .insert({
+        user_id: currentUser.id,
+        username: currentProfile.username,
+        message
+      });
+
+    if (error) throw error;
+
+    $("chatInput").value = "";
+    await fetchChat();
+  } catch (error) {
+    console.error(error);
+    showToast(error.message || "送信に失敗しました", "error");
+  }
+}
+
+async function deleteChatMessage(chatId) {
+  try {
+    const { error } = await supabase
+      .from("chat_messages")
+      .update({ is_deleted: true, message: "[削除されました]" })
+      .eq("id", chatId);
+
+    if (error) throw error;
+
+    await fetchChat();
+    showToast("メッセージを削除しました");
+  } catch (error) {
+    console.error(error);
+    showToast(error.message || "削除に失敗しました", "error");
+  }
+}
+
+async function setBanState(userId, mode) {
+  try {
+    const updates =
+      mode === "chat"
+        ? { is_chat_banned: true }
+        : { is_game_banned: true };
+
+    const { error } = await supabase
+      .from("profiles")
+      .update(updates)
+      .eq("id", userId);
+
+    if (error) throw error;
+
+    await Promise.all([fetchChat(), fetchBanList()]);
+    showToast(mode === "chat" ? "チャットBANしました" : "ゲームBANしました");
+  } catch (error) {
+    console.error(error);
+    showToast(error.message || "BANに失敗しました", "error");
+  }
+}
+
+async function unban(mode) {
+  const targetUserId = $("banTargetUserId").value.trim();
+  if (!targetUserId) {
+    showToast("user_id を入力してください", "warn");
+    return;
+  }
+
+  try {
+    const updates =
+      mode === "chat"
+        ? { is_chat_banned: false }
+        : { is_game_banned: false };
+
+    const { error } = await supabase
+      .from("profiles")
+      .update(updates)
+      .eq("id", targetUserId);
+
+    if (error) throw error;
+
+    await fetchBanList();
+    await fetchChat();
+    showToast(mode === "chat" ? "チャットBAN解除しました" : "ゲームBAN解除しました");
+  } catch (error) {
+    console.error(error);
+    showToast(error.message || "BAN解除に失敗しました", "error");
+  }
 }
 
 signupBtn.addEventListener("click", signup);
 loginBtn.addEventListener("click", login);
 logoutBtn.addEventListener("click", logout);
-gatherBtn.addEventListener("click", gather);
-sellBtn.addEventListener("click", sellItem);
+gatherBtn.addEventListener("click", gatherResource);
 changeUsernameBtn.addEventListener("click", changeUsername);
-refreshMarketBtn.addEventListener("click", loadMarket);
-marketSort.addEventListener("change", loadMarket);
-updatePricesBtn.addEventListener("click", updatePrices);
-refreshRankingBtn.addEventListener("click", loadRankings);
-refreshHistoryBtn.addEventListener("click", loadHistory);
+sellBtn.addEventListener("click", createListing);
+refreshMarketBtn.addEventListener("click", fetchMarket);
+refreshRankingBtn.addEventListener("click", fetchRanking);
+refreshHistoryBtn.addEventListener("click", fetchHistory);
+refreshChatBtn.addEventListener("click", fetchChat);
+sendChatBtn.addEventListener("click", sendChat);
+updatePricesBtn.addEventListener("click", updateMarketPrices);
+unbanChatBtn.addEventListener("click", () => unban("chat"));
+unbanGameBtn.addEventListener("click", () => unban("game"));
 
-sendChatBtn.addEventListener("click", sendChatMessage);
-refreshChatBtn.addEventListener("click", loadChat);
-unbanChatBtn.addEventListener("click", () => unbanUser("chat"));
-unbanGameBtn.addEventListener("click", () => unbanUser("game"));
-
-buyWoodNpcBtn.addEventListener("click", () =>
-  buyFromNpc("wood", Number(npcWoodQty.value))
-);
-buyStoneNpcBtn.addEventListener("click", () =>
-  buyFromNpc("stone", Number(npcStoneQty.value))
-);
-buyIronNpcBtn.addEventListener("click", () =>
-  buyFromNpc("iron", Number(npcIronQty.value))
-);
-
-(async function init() {
-  try {
-    showApp(false);
-
-    const {
-      data: { session },
-      error,
-    } = await supabase.auth.getSession();
-
-    if (error) throw error;
-
-    if (session?.user) {
-      await loadUser(session.user);
-    }
-  } catch (error) {
-    console.error(error);
-    showApp(false);
-    msg(error.message || "初期化エラー", true);
+$("marketSort").addEventListener("change", fetchMarket);
+$("chatInput").addEventListener("keydown", async (event) => {
+  if (event.key === "Enter") {
+    await sendChat();
   }
-})();
+});
+
+$("buyWoodNpcBtn").addEventListener("click", () => buyNpcResource("wood", "npcWoodQty"));
+$("buyStoneNpcBtn").addEventListener("click", () => buyNpcResource("stone", "npcStoneQty"));
+$("buyIronNpcBtn").addEventListener("click", () => buyNpcResource("iron", "npcIronQty"));
+$("buyGoldNpcBtn").addEventListener("click", () => buyNpcResource("gold", "npcGoldQty"));
+$("buyDiamondNpcBtn").addEventListener("click", () => buyNpcResource("diamond", "npcDiamondQty"));
+
+supabase.auth.onAuthStateChange(async (_event, session) => {
+  if (session?.user) {
+    currentUser = session.user;
+    toggleApp(true);
+    try {
+      await refreshAll();
+    } catch (error) {
+      console.error(error);
+      setMessage(error.message || "読み込みに失敗しました");
+    }
+  } else {
+    currentUser = null;
+    currentProfile = null;
+    isAdmin = false;
+    toggleApp(false);
+    hideBanOverlay();
+  }
+});
+
+await ensureLoggedIn();
