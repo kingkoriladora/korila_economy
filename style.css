@@ -26,21 +26,19 @@ body {
   padding: 0;
   color: var(--text);
   font-family: Inter, "Hiragino Sans", "Yu Gothic UI", "Yu Gothic", sans-serif;
-  background:
-    linear-gradient(rgba(5, 8, 22, 0.82), rgba(5, 8, 22, 0.9)),
-    url("images/bg.png"),
-    radial-gradient(circle at top left, rgba(124, 58, 237, 0.22), transparent 30%),
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 26%),
-    linear-gradient(135deg, var(--bg-3), var(--bg-1) 45%, #020617 100%);
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
   min-height: 100%;
 }
 
 body {
   min-height: 100vh;
   position: relative;
+  background-image:
+    linear-gradient(rgba(5, 8, 22, 0.72), rgba(5, 8, 22, 0.9)),
+    url("bg.png");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 body::before {
@@ -48,19 +46,10 @@ body::before {
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(circle at 20% 20%, rgba(124, 58, 237, 0.15), transparent 40%),
-    radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.1), transparent 40%);
+    radial-gradient(circle at 20% 20%, rgba(124, 58, 237, 0.12), transparent 40%),
+    radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.08), transparent 40%);
   z-index: -1;
-  animation: bgMove 10s infinite alternate;
-}
-
-@keyframes bgMove {
-  0% {
-    transform: translate(0, 0);
-  }
-  100% {
-    transform: translate(-20px, -20px);
-  }
+  pointer-events: none;
 }
 
 button,
