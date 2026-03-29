@@ -6,6 +6,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_kZHi2lLOxs3RBKmy_Mfb7A_qecCt4HP";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const DAILY_GATHER_LIMIT = 20;
+
 const RESOURCE_LABELS = {
   wood: "木",
   stone: "石",
@@ -36,26 +37,13 @@ const banMessage = $("banMessage");
 const messageArea = $("message");
 const toastContainer = $("toastContainer");
 
-const signupBtn = $("signupBtn");
-const loginBtn = $("loginBtn");
-const logoutBtn = $("logoutBtn");
-const gatherBtn = $("gatherBtn");
-const changeUsernameBtn = $("changeUsernameBtn");
-const sellBtn = $("sellBtn");
-const refreshMarketBtn = $("refreshMarketBtn");
-const refreshRankingBtn = $("refreshRankingBtn");
-const refreshHistoryBtn = $("refreshHistoryBtn");
-const refreshChatBtn = $("refreshChatBtn");
-const sendChatBtn = $("sendChatBtn");
-const updatePricesBtn = $("updatePricesBtn");
-const unbanChatBtn = $("unbanChatBtn");
-const unbanGameBtn = $("unbanGameBtn");
-
 function setMessage(text) {
-  messageArea.textContent = text || "";
+  if (messageArea) messageArea.textContent = text || "";
 }
 
 function showToast(text, type = "success") {
+  if (!toastContainer) return;
+
   const div = document.createElement("div");
   div.className = `toast ${type}`;
   div.textContent = text;
@@ -68,7 +56,7 @@ function showToast(text, type = "success") {
 
   setTimeout(() => {
     div.remove();
-  }, 2900);
+  }, 3000);
 }
 
 function escapeHtml(text = "") {
@@ -85,7 +73,7 @@ function formatNumber(value) {
 }
 
 function expNeeded(level) {
-  return Math.max(100, level * 100);
+  return Math.max(100, Number(level || 1) * 100);
 }
 
 function resourceAmount(profile, key) {
@@ -93,18 +81,18 @@ function resourceAmount(profile, key) {
 }
 
 function toggleApp(isLoggedIn) {
-  authSection.classList.toggle("hidden", isLoggedIn);
-  appSection.classList.toggle("hidden", !isLoggedIn);
-  appSection.setAttribute("aria-hidden", String(!isLoggedIn));
+  authSection?.classList.toggle("hidden", isLoggedIn);
+  appSection?.classList.toggle("hidden", !isLoggedIn);
+  appSection?.setAttribute("aria-hidden", String(!isLoggedIn));
 }
 
 function showBanOverlay(text) {
-  banMessage.textContent = text;
-  banOverlay.classList.remove("hidden");
+  if (banMessage) banMessage.textContent = text;
+  banOverlay?.classList.remove("hidden");
 }
 
 function hideBanOverlay() {
-  banOverlay.classList.add("hidden");
+  banOverlay?.classList.add("hidden");
 }
 
 function renderProfile() {
@@ -112,8 +100,8 @@ function renderProfile() {
 
   $("welcomeText").textContent = `ようこそ、${currentProfile.username || "プレイヤー"}さん`;
   $("titleText").textContent = `称号: ${currentProfile.title || "-"} / Lv.${currentProfile.level || 1}`;
-  $("moneyText").textContent = formatNumber(currentProfile.money);
 
+  $("moneyText").textContent = formatNumber(currentProfile.money);
   $("woodText").textContent = formatNumber(currentProfile.wood);
   $("stoneText").textContent = formatNumber(currentProfile.stone);
   $("ironText").textContent = formatNumber(currentProfile.iron);
@@ -123,20 +111,21 @@ function renderProfile() {
   const currentExp = Number(currentProfile.exp || 0);
   const level = Number(currentProfile.level || 1);
   const need = expNeeded(level);
+
   $("expText").textContent = `${currentExp} / ${need}`;
   $("expFill").style.width = `${Math.min(100, (currentExp / need) * 100)}%`;
 
   $("gatherCountText").textContent = `${currentProfile.gather_count || 0} / ${DAILY_GATHER_LIMIT}`;
   $("dailyLimitText").textContent = String(DAILY_GATHER_LIMIT);
 
-  const adminBanPanel = $("adminBanPanel");
-  const adminUserListSection = $("adminUserListSection");
-  adminBanPanel.classList.toggle("hidden", !isAdmin);
-  adminUserListSection.classList.toggle("hidden", !isAdmin);
+  $("adminBanPanel").classList.toggle("hidden", !isAdmin);
+  $("adminUserListSection").classList.toggle("hidden", !isAdmin);
 }
 
 function renderPrices() {
   const board = $("priceBoard");
+  if (!board) return;
+
   if (!currentPrices) {
     board.innerHTML = `<div class="emptyText">相場を読み込み中...</div>`;
     return;
@@ -153,12 +142,10 @@ function renderPrices() {
   }).join("");
 }
 
-function assetTotalOfRow(row) {
-  return Number(row.total_assets || 0);
-}
-
 function renderRanking(rows) {
   const list = $("rankingList");
+  if (!list) return;
+
   if (!rows || rows.length === 0) {
     list.innerHTML = `<div class="emptyText">ランキングはまだありません</div>`;
     $("currentRankText").textContent = "自分の順位: -";
@@ -172,11 +159,12 @@ function renderRanking(rows) {
       index === 2 ? "rankingTop3" : "";
 
     const isMe = row.user_id === currentUser?.id;
+
     return `
       <div class="marketItem ${extraClass} ${isMe ? "me" : ""}">
         <div class="marketInfo">
           <div><span class="rankNum">${row.rank_no}位</span> ${escapeHtml(row.username || "プレイヤー")}</div>
-          <div>総資産: ¥${formatNumber(assetTotalOfRow(row))}</div>
+          <div>総資産: ¥${formatNumber(row.total_assets)}</div>
           <div class="assetLine">
             現金: ¥${formatNumber(row.money)} / 木:${formatNumber(row.wood)} / 石:${formatNumber(row.stone)} / 鉄:${formatNumber(row.iron)} / 金:${formatNumber(row.gold)} / ダイヤ:${formatNumber(row.diamond)}
           </div>
@@ -193,6 +181,8 @@ function renderRanking(rows) {
 
 function renderHistory(rows) {
   const list = $("historyList");
+  if (!list) return;
+
   if (!rows || rows.length === 0) {
     list.innerHTML = `<div class="emptyText">取引履歴はまだありません</div>`;
     return;
@@ -218,6 +208,8 @@ function renderHistory(rows) {
 
 function renderMarket(rows) {
   const list = $("marketList");
+  if (!list) return;
+
   if (!rows || rows.length === 0) {
     list.innerHTML = `<div class="emptyText">出品はまだありません</div>`;
     return;
@@ -262,6 +254,8 @@ function renderMarket(rows) {
 
 function renderChat(rows) {
   const list = $("chatList");
+  if (!list) return;
+
   if (!rows || rows.length === 0) {
     list.innerHTML = `<div class="emptyText">まだメッセージがありません</div>`;
     return;
@@ -322,6 +316,8 @@ function renderChat(rows) {
 
 function renderBanList(rows) {
   const list = $("adminUserList");
+  if (!list) return;
+
   if (!rows || rows.length === 0) {
     list.innerHTML = `<div class="emptyText">BAN中ユーザーはいません</div>`;
     return;
@@ -387,7 +383,8 @@ async function fetchMarket() {
 
   const { data, error } = await query.limit(100);
   if (error) throw error;
-  renderMarket(data);
+
+  renderMarket(data || []);
 }
 
 async function fetchRanking() {
@@ -420,6 +417,7 @@ async function fetchChat() {
 
 async function fetchBanList() {
   if (!isAdmin) return;
+
   const { data, error } = await supabase
     .from("profiles")
     .select("id, username, is_chat_banned, is_game_banned")
@@ -456,6 +454,7 @@ async function refreshAll() {
 async function ensureLoggedIn() {
   const { data } = await supabase.auth.getSession();
   const session = data.session;
+
   if (!session?.user) {
     toggleApp(false);
     return;
@@ -498,7 +497,7 @@ async function signup() {
     return;
   }
 
-  showToast("登録しました。メール確認が必要な場合は確認してください");
+  showToast("登録しました。ログインしてください");
   setMessage("登録しました。ログインしてください");
 }
 
@@ -511,7 +510,10 @@ async function login() {
     return;
   }
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  });
 
   if (error) {
     showToast(error.message, "error");
@@ -536,12 +538,14 @@ async function logout() {
 
 async function gatherResource() {
   if (!currentUser) return;
+
   if (currentProfile?.is_game_banned) {
     showToast("ゲームBAN中です", "error");
     return;
   }
 
-  gatherBtn.disabled = true;
+  $("gatherBtn").disabled = true;
+
   try {
     const { data, error } = await supabase.rpc("gather_resource", {
       p_user_id: currentUser.id
@@ -551,24 +555,25 @@ async function gatherResource() {
 
     await fetchProfile();
     renderProfile();
+    await fetchRanking();
 
     const resource = data?.resource;
     const amount = data?.amount ?? 1;
+
     showToast(`${RESOURCE_LABELS[resource] || resource} を ${amount}個 採取しました`);
     setMessage(`${RESOURCE_LABELS[resource] || resource} を ${amount}個 採取しました`);
-
-    await Promise.all([fetchRanking(), fetchHistory()]);
   } catch (error) {
     console.error(error);
     showToast(error.message || "採取に失敗しました", "error");
     setMessage(error.message || "採取に失敗しました");
   } finally {
-    gatherBtn.disabled = false;
+    $("gatherBtn").disabled = false;
   }
 }
 
 async function changeUsername() {
   const newUsername = $("newUsername").value.trim();
+
   if (!newUsername) {
     showToast("新しいユーザー名を入力してください", "warn");
     return;
@@ -583,8 +588,10 @@ async function changeUsername() {
     if (error) throw error;
 
     $("newUsername").value = "";
+
     await fetchProfile();
     renderProfile();
+
     showToast("ユーザー名を変更しました");
   } catch (error) {
     console.error(error);
@@ -601,22 +608,17 @@ async function createListing() {
     showToast("資源を選んでください", "warn");
     return;
   }
+
   if (!Number.isInteger(quantity) || quantity <= 0) {
     showToast("数量を正しく入力してください", "warn");
     return;
   }
+
   if (!Number.isInteger(price) || price <= 0) {
     showToast("価格を正しく入力してください", "warn");
     return;
   }
-  if (quantity > 9999) {
-    showToast("数量が大きすぎます", "warn");
-    return;
-  }
-  if (price > 9999999) {
-    showToast("価格が大きすぎます", "warn");
-    return;
-  }
+
   if (resourceAmount(currentProfile, resource) < quantity) {
     showToast("所持数が足りません", "error");
     return;
@@ -625,12 +627,12 @@ async function createListing() {
   try {
     const newValue = resourceAmount(currentProfile, resource) - quantity;
 
-    const { error: updateError } = await supabase
+    const { error: updateProfileError } = await supabase
       .from("profiles")
       .update({ [resource]: newValue })
       .eq("id", currentUser.id);
 
-    if (updateError) throw updateError;
+    if (updateProfileError) throw updateProfileError;
 
     const { error: insertError } = await supabase
       .from("market")
@@ -713,6 +715,7 @@ async function buyMarketItem(listingId) {
       fetchRanking(),
       fetchHistory()
     ]);
+
     renderProfile();
 
     showToast(`${RESOURCE_LABELS[data.resource]}を購入しました`);
@@ -784,6 +787,7 @@ async function updateMarketPrices() {
     const { error } = await supabase.rpc("update_market_prices", {
       p_user_id: currentUser.id
     });
+
     if (error) throw error;
 
     await fetchPrices();
@@ -799,14 +803,17 @@ async function updateMarketPrices() {
 
 async function sendChat() {
   const message = $("chatInput").value.trim();
+
   if (!message) {
     showToast("メッセージを入力してください", "warn");
     return;
   }
+
   if (message.length > 200) {
     showToast("200文字以内にしてください", "warn");
     return;
   }
+
   if (currentProfile?.is_chat_banned) {
     showToast("チャットBAN中です", "error");
     return;
@@ -835,7 +842,10 @@ async function deleteChatMessage(chatId) {
   try {
     const { error } = await supabase
       .from("chat_messages")
-      .update({ is_deleted: true, message: "[削除されました]" })
+      .update({
+        is_deleted: true,
+        message: "[削除されました]"
+      })
       .eq("id", chatId);
 
     if (error) throw error;
@@ -872,6 +882,7 @@ async function setBanState(userId, mode) {
 
 async function unban(mode) {
   const targetUserId = $("banTargetUserId").value.trim();
+
   if (!targetUserId) {
     showToast("user_id を入力してください", "warn");
     return;
@@ -892,6 +903,7 @@ async function unban(mode) {
 
     await fetchBanList();
     await fetchChat();
+
     showToast(mode === "chat" ? "チャットBAN解除しました" : "ゲームBAN解除しました");
   } catch (error) {
     console.error(error);
@@ -899,20 +911,20 @@ async function unban(mode) {
   }
 }
 
-signupBtn.addEventListener("click", signup);
-loginBtn.addEventListener("click", login);
-logoutBtn.addEventListener("click", logout);
-gatherBtn.addEventListener("click", gatherResource);
-changeUsernameBtn.addEventListener("click", changeUsername);
-sellBtn.addEventListener("click", createListing);
-refreshMarketBtn.addEventListener("click", fetchMarket);
-refreshRankingBtn.addEventListener("click", fetchRanking);
-refreshHistoryBtn.addEventListener("click", fetchHistory);
-refreshChatBtn.addEventListener("click", fetchChat);
-sendChatBtn.addEventListener("click", sendChat);
-updatePricesBtn.addEventListener("click", updateMarketPrices);
-unbanChatBtn.addEventListener("click", () => unban("chat"));
-unbanGameBtn.addEventListener("click", () => unban("game"));
+$("signupBtn").addEventListener("click", signup);
+$("loginBtn").addEventListener("click", login);
+$("logoutBtn").addEventListener("click", logout);
+$("gatherBtn").addEventListener("click", gatherResource);
+$("changeUsernameBtn").addEventListener("click", changeUsername);
+$("sellBtn").addEventListener("click", createListing);
+$("refreshMarketBtn").addEventListener("click", fetchMarket);
+$("refreshRankingBtn").addEventListener("click", fetchRanking);
+$("refreshHistoryBtn").addEventListener("click", fetchHistory);
+$("refreshChatBtn").addEventListener("click", fetchChat);
+$("sendChatBtn").addEventListener("click", sendChat);
+$("updatePricesBtn").addEventListener("click", updateMarketPrices);
+$("unbanChatBtn").addEventListener("click", () => unban("chat"));
+$("unbanGameBtn").addEventListener("click", () => unban("game"));
 
 $("marketSort").addEventListener("change", fetchMarket);
 $("chatInput").addEventListener("keydown", async (event) => {
@@ -931,6 +943,7 @@ supabase.auth.onAuthStateChange(async (_event, session) => {
   if (session?.user) {
     currentUser = session.user;
     toggleApp(true);
+
     try {
       await refreshAll();
     } catch (error) {
