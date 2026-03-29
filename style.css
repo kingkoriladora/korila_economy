@@ -211,7 +211,7 @@ select:focus {
 }
 
 .statsGrid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-top: 18px;
 }
 
@@ -317,7 +317,7 @@ select:focus {
 .priceBoard {
   margin-top: 16px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -402,18 +402,18 @@ select:focus {
   box-shadow: inset 0 0 0 1px rgba(250, 204, 21, 0.15);
 }
 
-.marketList .marketItem:nth-child(1) {
-  border: 2px solid gold;
+.rankingTop1 {
+  border: 2px solid gold !important;
   background: rgba(255, 215, 0, 0.1);
 }
 
-.marketList .marketItem:nth-child(2) {
-  border: 2px solid silver;
+.rankingTop2 {
+  border: 2px solid silver !important;
   background: rgba(192, 192, 192, 0.1);
 }
 
-.marketList .marketItem:nth-child(3) {
-  border: 2px solid #cd7f32;
+.rankingTop3 {
+  border: 2px solid #cd7f32 !important;
   background: rgba(205, 127, 50, 0.1);
 }
 
@@ -582,6 +582,14 @@ select:focus {
   border-left: 4px solid #22c55e;
 }
 
+.toast.error {
+  border-left: 4px solid #ef4444;
+}
+
+.toast.warn {
+  border-left: 4px solid #f59e0b;
+}
+
 @keyframes toastIn {
   from {
     opacity: 0;
@@ -652,6 +660,17 @@ select:focus {
 #refreshHistoryBtn,
 #refreshChatBtn {
   background: linear-gradient(135deg, #2563eb, #1d4ed8);
+}
+
+.assetLine {
+  color: #cbd5e1;
+  font-size: 0.92rem;
+}
+
+.emptyText {
+  color: #94a3b8;
+  text-align: center;
+  padding: 16px;
 }
 
 ::-webkit-scrollbar {
