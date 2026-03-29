@@ -30,33 +30,26 @@ let isAdmin = false;
 
 const $ = (id) => document.getElementById(id);
 
-const authSection = $("authSection");
-const appSection = $("appSection");
-const banOverlay = $("banOverlay");
-const banMessage = $("banMessage");
-const messageArea = $("message");
-const toastContainer = $("toastContainer");
-
 function setMessage(text) {
-  if (messageArea) messageArea.textContent = text || "";
+  const el = $("message");
+  if (el) el.textContent = text || "";
 }
 
 function showToast(text, type = "success") {
-  if (!toastContainer) return;
+  const wrap = $("toastContainer");
+  if (!wrap) return;
 
-  const div = document.createElement("div");
-  div.className = `toast ${type}`;
-  div.textContent = text;
-  toastContainer.appendChild(div);
-
-  setTimeout(() => {
-    div.style.opacity = "0";
-    div.style.transform = "translateY(-8px)";
-  }, 2400);
+  const el = document.createElement("div");
+  el.className = `toast ${type}`;
+  el.textContent = text;
+  wrap.appendChild(el);
 
   setTimeout(() => {
-    div.remove();
-  }, 3000);
+    el.style.opacity = "0";
+    el.style.transform = "translateY(-8px)";
+  }, 2200);
+
+  setTimeout(() => el.remove(), 2800);
 }
 
 function escapeHtml(text = "") {
@@ -81,45 +74,104 @@ function resourceAmount(profile, key) {
 }
 
 function toggleApp(isLoggedIn) {
-  authSection?.classList.toggle("hidden", isLoggedIn);
-  appSection?.classList.toggle("hidden", !isLoggedIn);
-  appSection?.setAttribute("aria-hidden", String(!isLoggedIn));
+  $("authSection")?.classList.toggle("hidden", isLoggedIn);
+  $("appSection")?.classList.toggle("hidden", !isLoggedIn);
+  $("appSection")?.setAttribute("aria-hidden", String(!isLoggedIn));
 }
 
 function showBanOverlay(text) {
-  if (banMessage) banMessage.textContent = text;
-  banOverlay?.classList.remove("hidden");
+  const msg = $("banMessage");
+  if (msg) msg.textContent = text;
+  $("banOverlay")?.classList.remove("hidden");
 }
 
 function hideBanOverlay() {
-  banOverlay?.classList.add("hidden");
+  $("banOverlay")?.classList.add("hidden");
+}
+
+function resetState() {
+  currentUser = null;
+  currentProfile = null;
+  currentPrices = null;
+  isAdmin = false;
+  toggleApp(false);
+  hideBanOverlay();
+}
+
+function requireLogin() {
+  if (!currentUser || !currentProfile) {
+    showToast("ログインしてください", "error");
+    setMessage("ログインしてください");
+    return false;
+  }
+  return true;
+}
+
+async function ensureProfile() {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", currentUser.id)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  if (data) {
+    currentProfile = data;
+    isAdmin = !!data.is_admin;
+    return;
+  }
+
+  const email = currentUser.email || "";
+  const rawName = $("username")?.value?.trim() || email.split("@")[0] || "player";
+  const safeName = `${rawName}_${String(currentUser.id).replaceAll("-", "").slice(0, 6)}`;
+
+  const { error: insertError } = await supabase
+    .from("profiles")
+    .insert({
+      id: currentUser.id,
+      username: safeName
+    });
+
+  if (insertError) throw insertError;
+
+  const { data: created, error: refetchError } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", currentUser.id)
+    .single();
+
+  if (refetchError) throw refetchError;
+
+  currentProfile = created;
+  isAdmin = !!created.is_admin;
 }
 
 function renderProfile() {
   if (!currentProfile) return;
 
-  $("welcomeText").textContent = `ようこそ、${currentProfile.username || "プレイヤー"}さん`;
-  $("titleText").textContent = `称号: ${currentProfile.title || "-"} / Lv.${currentProfile.level || 1}`;
+  if ($("welcomeText")) $("welcomeText").textContent = `ようこそ、${currentProfile.username || "プレイヤー"}さん`;
+  if ($("titleText")) $("titleText").textContent = `称号: ${currentProfile.title || "-"} / Lv.${currentProfile.level || 1}`;
 
-  $("moneyText").textContent = formatNumber(currentProfile.money);
-  $("woodText").textContent = formatNumber(currentProfile.wood);
-  $("stoneText").textContent = formatNumber(currentProfile.stone);
-  $("ironText").textContent = formatNumber(currentProfile.iron);
-  $("goldText").textContent = formatNumber(currentProfile.gold);
-  $("diamondText").textContent = formatNumber(currentProfile.diamond);
+  if ($("moneyText")) $("moneyText").textContent = formatNumber(currentProfile.money);
+  if ($("woodText")) $("woodText").textContent = formatNumber(currentProfile.wood);
+  if ($("stoneText")) $("stoneText").textContent = formatNumber(currentProfile.stone);
+  if ($("ironText")) $("ironText").textContent = formatNumber(currentProfile.iron);
+  if ($("goldText")) $("goldText").textContent = formatNumber(currentProfile.gold);
+  if ($("diamondText")) $("diamondText").textContent = formatNumber(currentProfile.diamond);
 
-  const currentExp = Number(currentProfile.exp || 0);
+  const exp = Number(currentProfile.exp || 0);
   const level = Number(currentProfile.level || 1);
   const need = expNeeded(level);
 
-  $("expText").textContent = `${currentExp} / ${need}`;
-  $("expFill").style.width = `${Math.min(100, (currentExp / need) * 100)}%`;
+  if ($("expText")) $("expText").textContent = `${exp} / ${need}`;
+  if ($("expFill")) $("expFill").style.width = `${Math.min(100, (exp / need) * 100)}%`;
 
-  $("gatherCountText").textContent = `${currentProfile.gather_count || 0} / ${DAILY_GATHER_LIMIT}`;
-  $("dailyLimitText").textContent = String(DAILY_GATHER_LIMIT);
+  if ($("gatherCountText")) $("gatherCountText").textContent = `${currentProfile.gather_count || 0} / ${DAILY_GATHER_LIMIT}`;
+  if ($("dailyLimitText")) $("dailyLimitText").textContent = String(DAILY_GATHER_LIMIT);
 
-  $("adminBanPanel").classList.toggle("hidden", !isAdmin);
-  $("adminUserListSection").classList.toggle("hidden", !isAdmin);
+  $("adminBanPanel")?.classList.toggle("hidden", !isAdmin);
+  $("adminUserListSection")?.classList.toggle("hidden", !isAdmin);
 }
 
 function renderPrices() {
@@ -131,24 +183,60 @@ function renderPrices() {
     return;
   }
 
-  board.innerHTML = Object.entries(RESOURCE_LABELS).map(([key, label]) => {
-    const value = Number(currentPrices[key] || 0);
+  board.innerHTML = Object.entries(RESOURCE_LABELS).map(([key, label]) => `
+    <div class="priceBox">
+      <span>${label}</span>
+      <strong>¥${formatNumber(currentPrices[key])}</strong>
+    </div>
+  `).join("");
+}
+
+function renderMarket(rows) {
+  const list = $("marketList");
+  if (!list) return;
+
+  if (!rows?.length) {
+    list.innerHTML = `<div class="emptyText">出品はまだありません</div>`;
+    return;
+  }
+
+  list.innerHTML = rows.map((row) => {
+    const isMe = row.seller_id === currentUser?.id;
     return `
-      <div class="priceBox">
-        <span>${label}</span>
-        <strong>¥${formatNumber(value)}</strong>
+      <div class="marketItem ${isMe ? "me" : ""}">
+        <div class="marketInfo">
+          <strong>${escapeHtml(RESOURCE_LABELS[row.resource] || row.resource)}</strong>
+          <div>出品者: ${escapeHtml(row.seller_name || "プレイヤー")}</div>
+          <div>数量: ${formatNumber(row.quantity)} / 1個 ¥${formatNumber(row.price)}</div>
+          <div>合計: ¥${formatNumber(Number(row.quantity) * Number(row.price))}</div>
+          <div class="subText">${new Date(row.created_at).toLocaleString("ja-JP")}</div>
+        </div>
+        <div class="marketActions">
+          ${isMe
+            ? `<button class="smallBtn" data-cancel-id="${row.id}">出品取り消し</button>`
+            : `<button class="smallBtn" data-buy-id="${row.id}">購入</button>`
+          }
+        </div>
       </div>
     `;
   }).join("");
+
+  list.querySelectorAll("[data-buy-id]").forEach((btn) => {
+    btn.addEventListener("click", () => buyMarketItem(Number(btn.dataset.buyId)));
+  });
+
+  list.querySelectorAll("[data-cancel-id]").forEach((btn) => {
+    btn.addEventListener("click", () => cancelMarketItem(Number(btn.dataset.cancelId)));
+  });
 }
 
 function renderRanking(rows) {
   const list = $("rankingList");
   if (!list) return;
 
-  if (!rows || rows.length === 0) {
+  if (!rows?.length) {
     list.innerHTML = `<div class="emptyText">ランキングはまだありません</div>`;
-    $("currentRankText").textContent = "自分の順位: -";
+    if ($("currentRankText")) $("currentRankText").textContent = "自分の順位: -";
     return;
   }
 
@@ -174,110 +262,56 @@ function renderRanking(rows) {
   }).join("");
 
   const myRow = rows.find((row) => row.user_id === currentUser?.id);
-  $("currentRankText").textContent = myRow
-    ? `自分の順位: ${myRow.rank_no}位 / 総資産: ¥${formatNumber(myRow.total_assets)}`
-    : "自分の順位: 100位圏外";
+  if ($("currentRankText")) {
+    $("currentRankText").textContent = myRow
+      ? `自分の順位: ${myRow.rank_no}位 / 総資産: ¥${formatNumber(myRow.total_assets)}`
+      : "自分の順位: 100位圏外";
+  }
 }
 
 function renderHistory(rows) {
   const list = $("historyList");
   if (!list) return;
 
-  if (!rows || rows.length === 0) {
+  if (!rows?.length) {
     list.innerHTML = `<div class="emptyText">取引履歴はまだありません</div>`;
     return;
   }
 
-  list.innerHTML = rows.map((row) => {
-    const sourceText = row.source === "npc" ? "NPC" : "マーケット";
-    const buyerText = row.buyer_name || "誰か";
-    const sellerText = row.seller_name || "誰か";
-
-    return `
-      <div class="marketItem">
-        <div class="marketInfo">
-          <strong>${escapeHtml(RESOURCE_LABELS[row.resource] || row.resource)}</strong>
-          <div>${escapeHtml(sellerText)} → ${escapeHtml(buyerText)}</div>
-          <div>${formatNumber(row.quantity)}個 / 1個 ¥${formatNumber(row.price_each)} / 合計 ¥${formatNumber(row.total_price)}</div>
-          <div class="subText">${sourceText} / ${new Date(row.created_at).toLocaleString("ja-JP")}</div>
-        </div>
+  list.innerHTML = rows.map((row) => `
+    <div class="marketItem">
+      <div class="marketInfo">
+        <strong>${escapeHtml(RESOURCE_LABELS[row.resource] || row.resource)}</strong>
+        <div>${escapeHtml(row.seller_name || "誰か")} → ${escapeHtml(row.buyer_name || "誰か")}</div>
+        <div>${formatNumber(row.quantity)}個 / 1個 ¥${formatNumber(row.price_each)} / 合計 ¥${formatNumber(row.total_price)}</div>
+        <div class="subText">${row.source === "npc" ? "NPC" : "マーケット"} / ${new Date(row.created_at).toLocaleString("ja-JP")}</div>
       </div>
-    `;
-  }).join("");
-}
-
-function renderMarket(rows) {
-  const list = $("marketList");
-  if (!list) return;
-
-  if (!rows || rows.length === 0) {
-    list.innerHTML = `<div class="emptyText">出品はまだありません</div>`;
-    return;
-  }
-
-  list.innerHTML = rows.map((row) => {
-    const isMe = row.seller_id === currentUser?.id;
-
-    return `
-      <div class="marketItem ${isMe ? "me" : ""}">
-        <div class="marketInfo">
-          <strong>${escapeHtml(RESOURCE_LABELS[row.resource] || row.resource)}</strong>
-          <div>出品者: ${escapeHtml(row.seller_name || "プレイヤー")}</div>
-          <div>数量: ${formatNumber(row.quantity)} / 1個 ¥${formatNumber(row.price)}</div>
-          <div>合計: ¥${formatNumber(Number(row.quantity) * Number(row.price))}</div>
-          <div class="subText">${new Date(row.created_at).toLocaleString("ja-JP")}</div>
-        </div>
-        <div class="marketActions">
-          ${isMe
-            ? `<button class="smallBtn" data-cancel-id="${row.id}">出品取り消し</button>`
-            : `<button class="smallBtn" data-buy-id="${row.id}">購入</button>`
-          }
-        </div>
-      </div>
-    `;
-  }).join("");
-
-  list.querySelectorAll("[data-buy-id]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const id = Number(btn.dataset.buyId);
-      await buyMarketItem(id);
-    });
-  });
-
-  list.querySelectorAll("[data-cancel-id]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const id = Number(btn.dataset.cancelId);
-      await cancelMarketItem(id);
-    });
-  });
+    </div>
+  `).join("");
 }
 
 function renderChat(rows) {
   const list = $("chatList");
   if (!list) return;
 
-  if (!rows || rows.length === 0) {
+  if (!rows?.length) {
     list.innerHTML = `<div class="emptyText">まだメッセージがありません</div>`;
     return;
   }
 
   list.innerHTML = rows.map((row) => {
     const isMe = row.user_id === currentUser?.id;
-    const isAdminAuthor = !!row.is_admin;
-    const itemClass = `${isMe ? "me" : ""} ${isAdminAuthor ? "admin-author" : ""}`.trim();
+    const adminClass = row.is_admin ? "admin-author" : "";
+    const meClass = isMe ? "me" : "";
 
     return `
-      <div class="chatItem ${itemClass}">
+      <div class="chatItem ${meClass} ${adminClass}">
         <div class="chatMeta">
           <strong>${escapeHtml(row.username || "プレイヤー")}</strong>
           <span>${new Date(row.created_at).toLocaleString("ja-JP")}</span>
         </div>
         <div class="chatMessage">${escapeHtml(row.message)}</div>
-        ${
-          isAdminAuthor
-            ? `<div class="chatAdminLine">管理者</div>`
-            : ""
-        }
+        ${row.is_admin ? `<div class="chatAdminLine">管理者</div>` : ""}
         ${
           isAdmin && !isMe
             ? `
@@ -295,21 +329,15 @@ function renderChat(rows) {
 
   if (isAdmin) {
     list.querySelectorAll("[data-chat-delete-id]").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        await deleteChatMessage(Number(btn.dataset.chatDeleteId));
-      });
+      btn.addEventListener("click", () => deleteChatMessage(Number(btn.dataset.chatDeleteId)));
     });
 
     list.querySelectorAll("[data-chat-ban-id]").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        await setBanState(btn.dataset.chatBanId, "chat");
-      });
+      btn.addEventListener("click", () => setBanState(btn.dataset.chatBanId, "chat"));
     });
 
     list.querySelectorAll("[data-game-ban-id]").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        await setBanState(btn.dataset.gameBanId, "game");
-      });
+      btn.addEventListener("click", () => setBanState(btn.dataset.gameBanId, "game"));
     });
   }
 }
@@ -318,39 +346,24 @@ function renderBanList(rows) {
   const list = $("adminUserList");
   if (!list) return;
 
-  if (!rows || rows.length === 0) {
+  if (!rows?.length) {
     list.innerHTML = `<div class="emptyText">BAN中ユーザーはいません</div>`;
     return;
   }
 
-  list.innerHTML = rows.map((row) => {
-    const tags = [];
-    if (row.is_chat_banned) tags.push("チャットBAN");
-    if (row.is_game_banned) tags.push("ゲームBAN");
-
-    return `
-      <div class="marketItem">
-        <div class="marketInfo">
-          <strong>${escapeHtml(row.username || "プレイヤー")}</strong>
-          <div>user_id: ${escapeHtml(row.id)}</div>
-          <div>${tags.join(" / ")}</div>
-        </div>
+  list.innerHTML = rows.map((row) => `
+    <div class="marketItem">
+      <div class="marketInfo">
+        <strong>${escapeHtml(row.username || "プレイヤー")}</strong>
+        <div>user_id: ${escapeHtml(row.id)}</div>
+        <div>${row.is_chat_banned ? "チャットBAN" : ""}${row.is_chat_banned && row.is_game_banned ? " / " : ""}${row.is_game_banned ? "ゲームBAN" : ""}</div>
       </div>
-    `;
-  }).join("");
+    </div>
+  `).join("");
 }
 
 async function fetchProfile() {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", currentUser.id)
-    .single();
-
-  if (error) throw error;
-
-  currentProfile = data;
-  isAdmin = !!data.is_admin;
+  await ensureProfile();
 }
 
 async function fetchPrices() {
@@ -358,32 +371,25 @@ async function fetchPrices() {
     .from("market_prices")
     .select("*")
     .eq("id", 1)
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
+  if (!data) throw new Error("相場データがありません");
+
   currentPrices = data;
 }
 
 async function fetchMarket() {
-  const sortValue = $("marketSort").value;
-  let query = supabase
-    .from("market")
-    .select("*")
-    .eq("sold_out", false);
+  const sortValue = $("marketSort")?.value || "newest";
+  let query = supabase.from("market").select("*").eq("sold_out", false);
 
-  if (sortValue === "priceAsc") {
-    query = query.order("price", { ascending: true });
-  } else if (sortValue === "priceDesc") {
-    query = query.order("price", { ascending: false });
-  } else if (sortValue === "quantityDesc") {
-    query = query.order("quantity", { ascending: false });
-  } else {
-    query = query.order("created_at", { ascending: false });
-  }
+  if (sortValue === "priceAsc") query = query.order("price", { ascending: true });
+  else if (sortValue === "priceDesc") query = query.order("price", { ascending: false });
+  else if (sortValue === "quantityDesc") query = query.order("quantity", { ascending: false });
+  else query = query.order("created_at", { ascending: false });
 
   const { data, error } = await query.limit(100);
   if (error) throw error;
-
   renderMarket(data || []);
 }
 
@@ -432,11 +438,8 @@ async function refreshAll() {
   await fetchProfile();
   renderProfile();
 
-  if (currentProfile.is_game_banned) {
-    showBanOverlay("このアカウントはゲームBAN中です");
-  } else {
-    hideBanOverlay();
-  }
+  if (currentProfile?.is_game_banned) showBanOverlay("このアカウントはゲームBAN中です");
+  else hideBanOverlay();
 
   await Promise.all([
     fetchPrices(),
@@ -451,32 +454,10 @@ async function refreshAll() {
   renderProfile();
 }
 
-async function ensureLoggedIn() {
-  const { data } = await supabase.auth.getSession();
-  const session = data.session;
-
-  if (!session?.user) {
-    toggleApp(false);
-    return;
-  }
-
-  currentUser = session.user;
-  toggleApp(true);
-
-  try {
-    await refreshAll();
-    setMessage("読み込み完了");
-  } catch (error) {
-    console.error(error);
-    setMessage(error.message || "読み込みに失敗しました");
-    showToast(error.message || "読み込みに失敗しました", "error");
-  }
-}
-
 async function signup() {
-  const username = $("username").value.trim();
-  const email = $("email").value.trim();
-  const password = $("password").value;
+  const username = $("username")?.value.trim();
+  const email = $("email")?.value.trim();
+  const password = $("password")?.value;
 
   if (!username || !email || !password) {
     showToast("ユーザー名・メール・パスワードを入力してください", "warn");
@@ -486,9 +467,7 @@ async function signup() {
   const { error } = await supabase.auth.signUp({
     email,
     password,
-    options: {
-      data: { username }
-    }
+    options: { data: { username } }
   });
 
   if (error) {
@@ -502,18 +481,15 @@ async function signup() {
 }
 
 async function login() {
-  const email = $("email").value.trim();
-  const password = $("password").value;
+  const email = $("email")?.value.trim();
+  const password = $("password")?.value;
 
   if (!email || !password) {
     showToast("メールとパスワードを入力してください", "warn");
     return;
   }
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password
-  });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     showToast(error.message, "error");
@@ -521,30 +497,39 @@ async function login() {
     return;
   }
 
-  showToast("ログインしました");
-  setMessage("ログインしました");
+  currentUser = data.user;
+
+  try {
+    toggleApp(true);
+    await refreshAll();
+    showToast("ログインしました");
+    setMessage("ログインしました");
+  } catch (err) {
+    console.error(err);
+    await supabase.auth.signOut();
+    resetState();
+    showToast(err.message || "ログイン後の読み込みに失敗しました", "error");
+    setMessage(err.message || "ログイン後の読み込みに失敗しました");
+  }
 }
 
 async function logout() {
   await supabase.auth.signOut();
-  currentUser = null;
-  currentProfile = null;
-  isAdmin = false;
-  toggleApp(false);
-  hideBanOverlay();
+  resetState();
   setMessage("ログアウトしました");
   showToast("ログアウトしました");
 }
 
 async function gatherResource() {
-  if (!currentUser) return;
+  if (!requireLogin()) return;
 
-  if (currentProfile?.is_game_banned) {
+  if (currentProfile.is_game_banned) {
     showToast("ゲームBAN中です", "error");
     return;
   }
 
-  $("gatherBtn").disabled = true;
+  const btn = $("gatherBtn");
+  if (btn) btn.disabled = true;
 
   try {
     const { data, error } = await supabase.rpc("gather_resource", {
@@ -557,7 +542,7 @@ async function gatherResource() {
     renderProfile();
     await fetchRanking();
 
-    const resource = data?.resource;
+    const resource = data?.resource || "wood";
     const amount = data?.amount ?? 1;
 
     showToast(`${RESOURCE_LABELS[resource] || resource} を ${amount}個 採取しました`);
@@ -567,13 +552,14 @@ async function gatherResource() {
     showToast(error.message || "採取に失敗しました", "error");
     setMessage(error.message || "採取に失敗しました");
   } finally {
-    $("gatherBtn").disabled = false;
+    if (btn) btn.disabled = false;
   }
 }
 
 async function changeUsername() {
-  const newUsername = $("newUsername").value.trim();
+  if (!requireLogin()) return;
 
+  const newUsername = $("newUsername")?.value.trim();
   if (!newUsername) {
     showToast("新しいユーザー名を入力してください", "warn");
     return;
@@ -588,10 +574,8 @@ async function changeUsername() {
     if (error) throw error;
 
     $("newUsername").value = "";
-
     await fetchProfile();
     renderProfile();
-
     showToast("ユーザー名を変更しました");
   } catch (error) {
     console.error(error);
@@ -600,39 +584,36 @@ async function changeUsername() {
 }
 
 async function createListing() {
-  const resource = $("sellResource").value;
-  const quantity = Number($("sellQuantity").value);
-  const price = Number($("sellPrice").value);
+  if (!requireLogin()) return;
+
+  const resource = $("sellResource")?.value;
+  const quantity = Number($("sellQuantity")?.value);
+  const price = Number($("sellPrice")?.value);
 
   if (!resource || !RESOURCE_LABELS[resource]) {
     showToast("資源を選んでください", "warn");
     return;
   }
-
   if (!Number.isInteger(quantity) || quantity <= 0) {
     showToast("数量を正しく入力してください", "warn");
     return;
   }
-
   if (!Number.isInteger(price) || price <= 0) {
     showToast("価格を正しく入力してください", "warn");
     return;
   }
-
   if (resourceAmount(currentProfile, resource) < quantity) {
     showToast("所持数が足りません", "error");
     return;
   }
 
   try {
-    const newValue = resourceAmount(currentProfile, resource) - quantity;
-
-    const { error: updateProfileError } = await supabase
+    const { error: updateError } = await supabase
       .from("profiles")
-      .update({ [resource]: newValue })
+      .update({ [resource]: resourceAmount(currentProfile, resource) - quantity })
       .eq("id", currentUser.id);
 
-    if (updateProfileError) throw updateProfileError;
+    if (updateError) throw updateError;
 
     const { error: insertError } = await supabase
       .from("market")
@@ -653,17 +634,17 @@ async function createListing() {
     renderProfile();
 
     showToast(`${RESOURCE_LABELS[resource]}を出品しました`);
-    setMessage(`${RESOURCE_LABELS[resource]}を出品しました`);
   } catch (error) {
     console.error(error);
     showToast(error.message || "出品に失敗しました", "error");
-    setMessage(error.message || "出品に失敗しました");
   }
 }
 
 async function cancelMarketItem(id) {
+  if (!requireLogin()) return;
+
   try {
-    const { data: row, error: getError } = await supabase
+    const { data: row, error } = await supabase
       .from("market")
       .select("*")
       .eq("id", id)
@@ -671,28 +652,24 @@ async function cancelMarketItem(id) {
       .eq("sold_out", false)
       .single();
 
-    if (getError) throw getError;
+    if (error) throw error;
 
-    const restored = resourceAmount(currentProfile, row.resource) + Number(row.quantity);
-
-    const { error: updateProfileError } = await supabase
+    const { error: profileError } = await supabase
       .from("profiles")
-      .update({ [row.resource]: restored })
+      .update({ [row.resource]: resourceAmount(currentProfile, row.resource) + Number(row.quantity) })
       .eq("id", currentUser.id);
 
-    if (updateProfileError) throw updateProfileError;
+    if (profileError) throw profileError;
 
-    const { error: updateMarketError } = await supabase
+    const { error: marketError } = await supabase
       .from("market")
       .update({ sold_out: true })
-      .eq("id", id)
-      .eq("seller_id", currentUser.id);
+      .eq("id", id);
 
-    if (updateMarketError) throw updateMarketError;
+    if (marketError) throw marketError;
 
     await Promise.all([fetchProfile(), fetchMarket(), fetchRanking()]);
     renderProfile();
-
     showToast("出品を取り消しました");
   } catch (error) {
     console.error(error);
@@ -701,6 +678,8 @@ async function cancelMarketItem(id) {
 }
 
 async function buyMarketItem(listingId) {
+  if (!requireLogin()) return;
+
   try {
     const { data, error } = await supabase.rpc("buy_market_item", {
       p_listing_id: listingId,
@@ -709,49 +688,38 @@ async function buyMarketItem(listingId) {
 
     if (error) throw error;
 
-    await Promise.all([
-      fetchProfile(),
-      fetchMarket(),
-      fetchRanking(),
-      fetchHistory()
-    ]);
-
+    await Promise.all([fetchProfile(), fetchMarket(), fetchRanking(), fetchHistory()]);
     renderProfile();
 
     showToast(`${RESOURCE_LABELS[data.resource]}を購入しました`);
-    setMessage(`${RESOURCE_LABELS[data.resource]}を購入しました`);
   } catch (error) {
     console.error(error);
     showToast(error.message || "購入に失敗しました", "error");
-    setMessage(error.message || "購入に失敗しました");
   }
 }
 
 async function buyNpcResource(resource, qtyInputId) {
-  const qty = Number($(qtyInputId).value);
+  if (!requireLogin()) return;
 
+  const qty = Number($(qtyInputId)?.value);
   if (!Number.isInteger(qty) || qty <= 0) {
     showToast("数量を正しく入力してください", "warn");
     return;
   }
 
-  const priceEach = NPC_PRICES[resource];
-  const total = priceEach * qty;
-
+  const total = NPC_PRICES[resource] * qty;
   if (Number(currentProfile.money) < total) {
     showToast("お金が足りません", "error");
     return;
   }
 
-  const updates = {
-    money: Number(currentProfile.money) - total,
-    [resource]: resourceAmount(currentProfile, resource) + qty
-  };
-
   try {
     const { error: updateError } = await supabase
       .from("profiles")
-      .update(updates)
+      .update({
+        money: Number(currentProfile.money) - total,
+        [resource]: resourceAmount(currentProfile, resource) + qty
+      })
       .eq("id", currentUser.id);
 
     if (updateError) throw updateError;
@@ -765,7 +733,7 @@ async function buyNpcResource(resource, qtyInputId) {
         seller_name: "NPC商人",
         resource,
         quantity: qty,
-        price_each: priceEach,
+        price_each: NPC_PRICES[resource],
         total_price: total,
         source: "npc"
       });
@@ -783,6 +751,8 @@ async function buyNpcResource(resource, qtyInputId) {
 }
 
 async function updateMarketPrices() {
+  if (!requireLogin()) return;
+
   try {
     const { error } = await supabase.rpc("update_market_prices", {
       p_user_id: currentUser.id
@@ -791,8 +761,8 @@ async function updateMarketPrices() {
     if (error) throw error;
 
     await fetchPrices();
-    renderPrices();
     await fetchRanking();
+    renderPrices();
 
     showToast("相場を更新しました");
   } catch (error) {
@@ -802,19 +772,18 @@ async function updateMarketPrices() {
 }
 
 async function sendChat() {
-  const message = $("chatInput").value.trim();
+  if (!requireLogin()) return;
 
+  const message = $("chatInput")?.value.trim();
   if (!message) {
     showToast("メッセージを入力してください", "warn");
     return;
   }
-
   if (message.length > 200) {
     showToast("200文字以内にしてください", "warn");
     return;
   }
-
-  if (currentProfile?.is_chat_banned) {
+  if (currentProfile.is_chat_banned) {
     showToast("チャットBAN中です", "error");
     return;
   }
@@ -839,6 +808,8 @@ async function sendChat() {
 }
 
 async function deleteChatMessage(chatId) {
+  if (!requireLogin()) return;
+
   try {
     const { error } = await supabase
       .from("chat_messages")
@@ -859,15 +830,12 @@ async function deleteChatMessage(chatId) {
 }
 
 async function setBanState(userId, mode) {
-  try {
-    const updates =
-      mode === "chat"
-        ? { is_chat_banned: true }
-        : { is_game_banned: true };
+  if (!requireLogin()) return;
 
+  try {
     const { error } = await supabase
       .from("profiles")
-      .update(updates)
+      .update(mode === "chat" ? { is_chat_banned: true } : { is_game_banned: true })
       .eq("id", userId);
 
     if (error) throw error;
@@ -881,29 +849,23 @@ async function setBanState(userId, mode) {
 }
 
 async function unban(mode) {
-  const targetUserId = $("banTargetUserId").value.trim();
+  if (!requireLogin()) return;
 
+  const targetUserId = $("banTargetUserId")?.value.trim();
   if (!targetUserId) {
     showToast("user_id を入力してください", "warn");
     return;
   }
 
   try {
-    const updates =
-      mode === "chat"
-        ? { is_chat_banned: false }
-        : { is_game_banned: false };
-
     const { error } = await supabase
       .from("profiles")
-      .update(updates)
+      .update(mode === "chat" ? { is_chat_banned: false } : { is_game_banned: false })
       .eq("id", targetUserId);
 
     if (error) throw error;
 
-    await fetchBanList();
-    await fetchChat();
-
+    await Promise.all([fetchBanList(), fetchChat()]);
     showToast(mode === "chat" ? "チャットBAN解除しました" : "ゲームBAN解除しました");
   } catch (error) {
     console.error(error);
@@ -911,52 +873,82 @@ async function unban(mode) {
   }
 }
 
-$("signupBtn").addEventListener("click", signup);
-$("loginBtn").addEventListener("click", login);
-$("logoutBtn").addEventListener("click", logout);
-$("gatherBtn").addEventListener("click", gatherResource);
-$("changeUsernameBtn").addEventListener("click", changeUsername);
-$("sellBtn").addEventListener("click", createListing);
-$("refreshMarketBtn").addEventListener("click", fetchMarket);
-$("refreshRankingBtn").addEventListener("click", fetchRanking);
-$("refreshHistoryBtn").addEventListener("click", fetchHistory);
-$("refreshChatBtn").addEventListener("click", fetchChat);
-$("sendChatBtn").addEventListener("click", sendChat);
-$("updatePricesBtn").addEventListener("click", updateMarketPrices);
-$("unbanChatBtn").addEventListener("click", () => unban("chat"));
-$("unbanGameBtn").addEventListener("click", () => unban("game"));
+function bindEvents() {
+  $("signupBtn")?.addEventListener("click", signup);
+  $("loginBtn")?.addEventListener("click", login);
+  $("logoutBtn")?.addEventListener("click", logout);
+  $("gatherBtn")?.addEventListener("click", gatherResource);
+  $("changeUsernameBtn")?.addEventListener("click", changeUsername);
+  $("sellBtn")?.addEventListener("click", createListing);
+  $("refreshMarketBtn")?.addEventListener("click", fetchMarket);
+  $("refreshRankingBtn")?.addEventListener("click", fetchRanking);
+  $("refreshHistoryBtn")?.addEventListener("click", fetchHistory);
+  $("refreshChatBtn")?.addEventListener("click", fetchChat);
+  $("sendChatBtn")?.addEventListener("click", sendChat);
+  $("updatePricesBtn")?.addEventListener("click", updateMarketPrices);
+  $("unbanChatBtn")?.addEventListener("click", () => unban("chat"));
+  $("unbanGameBtn")?.addEventListener("click", () => unban("game"));
 
-$("marketSort").addEventListener("change", fetchMarket);
-$("chatInput").addEventListener("keydown", async (event) => {
-  if (event.key === "Enter") {
-    await sendChat();
+  $("marketSort")?.addEventListener("change", fetchMarket);
+  $("chatInput")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") sendChat();
+  });
+
+  $("buyWoodNpcBtn")?.addEventListener("click", () => buyNpcResource("wood", "npcWoodQty"));
+  $("buyStoneNpcBtn")?.addEventListener("click", () => buyNpcResource("stone", "npcStoneQty"));
+  $("buyIronNpcBtn")?.addEventListener("click", () => buyNpcResource("iron", "npcIronQty"));
+  $("buyGoldNpcBtn")?.addEventListener("click", () => buyNpcResource("gold", "npcGoldQty"));
+  $("buyDiamondNpcBtn")?.addEventListener("click", () => buyNpcResource("diamond", "npcDiamondQty"));
+}
+
+async function bootstrap() {
+  bindEvents();
+
+  const { data, error } = await supabase.auth.getSession();
+  if (error) {
+    console.error(error);
+    resetState();
+    return;
   }
-});
 
-$("buyWoodNpcBtn").addEventListener("click", () => buyNpcResource("wood", "npcWoodQty"));
-$("buyStoneNpcBtn").addEventListener("click", () => buyNpcResource("stone", "npcStoneQty"));
-$("buyIronNpcBtn").addEventListener("click", () => buyNpcResource("iron", "npcIronQty"));
-$("buyGoldNpcBtn").addEventListener("click", () => buyNpcResource("gold", "npcGoldQty"));
-$("buyDiamondNpcBtn").addEventListener("click", () => buyNpcResource("diamond", "npcDiamondQty"));
+  const session = data.session;
+  if (!session?.user) {
+    resetState();
+    return;
+  }
+
+  currentUser = session.user;
+  toggleApp(true);
+
+  try {
+    await refreshAll();
+  } catch (err) {
+    console.error(err);
+    await supabase.auth.signOut();
+    resetState();
+    setMessage(err.message || "読み込みに失敗しました");
+    showToast(err.message || "読み込みに失敗しました", "error");
+  }
+}
 
 supabase.auth.onAuthStateChange(async (_event, session) => {
-  if (session?.user) {
-    currentUser = session.user;
-    toggleApp(true);
+  if (!session?.user) {
+    resetState();
+    return;
+  }
 
-    try {
-      await refreshAll();
-    } catch (error) {
-      console.error(error);
-      setMessage(error.message || "読み込みに失敗しました");
-    }
-  } else {
-    currentUser = null;
-    currentProfile = null;
-    isAdmin = false;
-    toggleApp(false);
-    hideBanOverlay();
+  currentUser = session.user;
+  toggleApp(true);
+
+  try {
+    await refreshAll();
+  } catch (err) {
+    console.error(err);
+    await supabase.auth.signOut();
+    resetState();
+    setMessage(err.message || "読み込みに失敗しました");
+    showToast(err.message || "読み込みに失敗しました", "error");
   }
 });
 
-await ensureLoggedIn();
+bootstrap();
