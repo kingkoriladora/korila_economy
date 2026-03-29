@@ -58,7 +58,7 @@
           <h3>遊び方</h3>
           <p class="subText">お金を増やす経済ゲームです</p>
           <ol>
-            <li>採取して木・石・鉄を集める</li>
+            <li>採取して木・石・鉄・金・ダイヤを集める</li>
             <li>マーケットで売買してお金を増やす</li>
             <li>相場を見て高いタイミングで売る</li>
             <li>ランキング上位を目指す</li>
@@ -109,6 +109,16 @@
           <h3>鉄</h3>
           <p class="bigNumber"><span id="ironText">0</span></p>
         </div>
+
+        <div class="card statCard">
+          <h3>金</h3>
+          <p class="bigNumber"><span id="goldText">0</span></p>
+        </div>
+
+        <div class="card statCard">
+          <h3>ダイヤ</h3>
+          <p class="bigNumber"><span id="diamondText">0</span></p>
+        </div>
       </section>
 
       <section class="grid twoCol">
@@ -150,9 +160,11 @@
               <option value="wood">木</option>
               <option value="stone">石</option>
               <option value="iron">鉄</option>
+              <option value="gold">金</option>
+              <option value="diamond">ダイヤ</option>
             </select>
-            <input id="sellQuantity" type="number" placeholder="数量" />
-            <input id="sellPrice" type="number" placeholder="1個あたりの価格" />
+            <input id="sellQuantity" type="number" min="1" placeholder="数量" />
+            <input id="sellPrice" type="number" min="1" placeholder="1個あたりの価格" />
             <button id="sellBtn">出品する</button>
           </div>
         </section>
@@ -190,6 +202,18 @@
               <span>鉄</span>
               <input id="npcIronQty" type="number" min="1" value="1" />
               <button id="buyIronNpcBtn">鉄を買う</button>
+            </div>
+
+            <div class="npcRow">
+              <span>金</span>
+              <input id="npcGoldQty" type="number" min="1" value="1" />
+              <button id="buyGoldNpcBtn">金を買う</button>
+            </div>
+
+            <div class="npcRow">
+              <span>ダイヤ</span>
+              <input id="npcDiamondQty" type="number" min="1" value="1" />
+              <button id="buyDiamondNpcBtn">ダイヤを買う</button>
             </div>
           </div>
         </section>
@@ -262,7 +286,7 @@
         </div>
 
         <div class="chatInputRow">
-          <input id="chatInput" type="text" placeholder="メッセージを入力" />
+          <input id="chatInput" type="text" maxlength="200" placeholder="メッセージを入力" />
           <button id="sendChatBtn">送信</button>
         </div>
 
@@ -278,7 +302,7 @@
         </div>
 
         <div class="row">
-          <input id="banTargetUserId" type="text" placeholder="解除したい user_id" />
+          <input id="banTargetUserId" type="text" placeholder="対象 user_id" />
           <button id="unbanChatBtn">チャットBAN解除</button>
           <button id="unbanGameBtn">ゲームBAN解除</button>
         </div>
@@ -304,7 +328,6 @@
     </div>
 
     <div id="toastContainer" class="toastContainer"></div>
-
     <p id="message" class="messageArea"></p>
   </main>
 
