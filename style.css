@@ -777,4 +777,5 @@ button:disabled {
   border-radius: 16px;
   background: linear-gradient(135deg, #0f172a, #1e1b4b);
   padding: 6px;
+  box-shadow: 0 0 15px rgba(124, 58, 237, 0.4);
 }
