@@ -423,10 +423,6 @@ button:disabled {
   background: rgba(205, 127, 50, 0.1);
 }
 
-.admin-author {
-  border-left: 4px solid #60a5fa;
-}
-
 .chatList {
   display: flex;
   flex-direction: column;
