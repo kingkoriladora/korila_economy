@@ -214,9 +214,10 @@ function renderMarket(rows) {
           <div class="subText">${new Date(row.created_at).toLocaleString("ja-JP")}</div>
         </div>
         <div class="marketActions">
-          ${isMe
-            ? `<button class="smallBtn" data-cancel-id="${row.id}">出品取り消し</button>`
-            : `<button class="smallBtn" data-buy-id="${row.id}">購入</button>`
+          ${
+            isMe
+              ? `<button class="smallBtn" data-cancel-id="${row.id}">出品取り消し</button>`
+              : `<button class="smallBtn" data-buy-id="${row.id}">購入</button>`
           }
         </div>
       </div>
@@ -487,29 +488,20 @@ async function login() {
   const password = $("password")?.value;
 
   if (!email || !password) {
-    alert("入力して");
+    showToast("メールとパスワードを入力してください", "warn");
     return;
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    alert(error.message);
+    showToast(error.message, "error");
+    setMessage(error.message);
     return;
   }
 
   currentUser = data.user;
 
-  // 👇 先に画面開く（ここ重要）
-  toggleApp(true);
-
-  try {
-    await refreshAll();
-  } catch (err) {
-    alert("ここで止まってる👇\n" + (err.message || err));
-    console.error(err);
-  }
-}
   try {
     await refreshAll();
     toggleApp(true);
@@ -922,7 +914,6 @@ async function bootstrap() {
   }
 
   const session = data.session;
-
   if (!session?.user) {
     resetState();
     return;
