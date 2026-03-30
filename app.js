@@ -30,6 +30,12 @@ let isAdmin = false;
 
 const $ = (id) => document.getElementById(id);
 
+function debug(text) {
+  const el = $("message");
+  if (el) el.textContent = "[debug] " + text;
+  console.log("[debug]", text);
+}
+
 function setMessage(text) {
   const el = $("message");
   if (el) el.textContent = text || "";
@@ -438,21 +444,33 @@ async function fetchBanList() {
 }
 
 async function refreshAll() {
+  debug("fetchProfile開始");
   await fetchProfile();
+  debug("fetchProfile成功");
+
   renderProfile();
 
-  if (currentProfile?.is_game_banned) showBanOverlay("このアカウントはゲームBAN中です");
-  else hideBanOverlay();
+  debug("fetchPrices開始");
+  await fetchPrices();
+  debug("fetchPrices成功");
 
-  await Promise.all([
-    fetchPrices(),
-    fetchMarket(),
-    fetchRanking(),
-    fetchHistory(),
-    fetchChat(),
-    fetchBanList()
-  ]);
+  debug("fetchMarket開始");
+  await fetchMarket();
+  debug("fetchMarket成功");
 
+  debug("fetchRanking開始");
+  await fetchRanking();
+  debug("fetchRanking成功");
+
+  debug("fetchHistory開始");
+  await fetchHistory();
+  debug("fetchHistory成功");
+
+  debug("fetchChat開始");
+  await fetchChat();
+  debug("fetchChat成功");
+
+  await fetchBanList();
   renderPrices();
   renderProfile();
 }
@@ -463,7 +481,7 @@ async function signup() {
   const password = $("password")?.value;
 
   if (!username || !email || !password) {
-    showToast("ユーザー名・メール・パスワードを入力してください", "warn");
+    debug("ユーザー名・メール・パスワード未入力");
     return;
   }
 
@@ -474,13 +492,11 @@ async function signup() {
   });
 
   if (error) {
-    showToast(error.message, "error");
-    setMessage(error.message);
+    debug("登録失敗: " + error.message);
     return;
   }
 
-  showToast("登録しました。ログインしてください");
-  setMessage("登録しました。ログインしてください");
+  debug("登録成功");
 }
 
 async function login() {
@@ -488,46 +504,44 @@ async function login() {
   const password = $("password")?.value;
 
   if (!email || !password) {
-    showToast("メールとパスワードを入力してください", "warn");
+    debug("メールかパスワード未入力");
     return;
   }
+
+  debug("ログイン開始");
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    showToast(error.message, "error");
-    setMessage(error.message);
+    debug("signIn失敗: " + error.message);
     return;
   }
 
   currentUser = data.user;
+  debug("signIn成功 uid=" + currentUser.id);
 
   try {
+    debug("refreshAll前");
     await refreshAll();
+    debug("refreshAll成功");
     toggleApp(true);
-    showToast("ログインしました");
-    setMessage("ログインしました");
   } catch (err) {
+    debug("refreshAll失敗: " + (err.message || err));
     console.error(err);
-    await supabase.auth.signOut();
-    resetState();
-    showToast(err.message || "ログイン後の読み込みに失敗しました", "error");
-    setMessage(err.message || "ログイン後の読み込みに失敗しました");
   }
 }
 
 async function logout() {
   await supabase.auth.signOut();
   resetState();
-  setMessage("ログアウトしました");
-  showToast("ログアウトしました");
+  debug("ログアウトしました");
 }
 
 async function gatherResource() {
   if (!requireLogin()) return;
 
   if (currentProfile.is_game_banned) {
-    showToast("ゲームBAN中です", "error");
+    debug("ゲームBAN中");
     return;
   }
 
@@ -548,12 +562,10 @@ async function gatherResource() {
     const resource = data?.resource || "wood";
     const amount = data?.amount ?? 1;
 
-    showToast(`${RESOURCE_LABELS[resource] || resource} を ${amount}個 採取しました`);
-    setMessage(`${RESOURCE_LABELS[resource] || resource} を ${amount}個 採取しました`);
+    debug(`${RESOURCE_LABELS[resource] || resource} を ${amount}個 採取しました`);
   } catch (error) {
     console.error(error);
-    showToast(error.message || "採取に失敗しました", "error");
-    setMessage(error.message || "採取に失敗しました");
+    debug("採取に失敗: " + (error.message || error));
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -564,7 +576,7 @@ async function changeUsername() {
 
   const newUsername = $("newUsername")?.value.trim();
   if (!newUsername) {
-    showToast("新しいユーザー名を入力してください", "warn");
+    debug("新しいユーザー名未入力");
     return;
   }
 
@@ -579,10 +591,10 @@ async function changeUsername() {
     $("newUsername").value = "";
     await fetchProfile();
     renderProfile();
-    showToast("ユーザー名を変更しました");
+    debug("ユーザー名を変更しました");
   } catch (error) {
     console.error(error);
-    showToast(error.message || "ユーザー名変更に失敗しました", "error");
+    debug("ユーザー名変更失敗: " + (error.message || error));
   }
 }
 
@@ -594,19 +606,19 @@ async function createListing() {
   const price = Number($("sellPrice")?.value);
 
   if (!resource || !RESOURCE_LABELS[resource]) {
-    showToast("資源を選んでください", "warn");
+    debug("資源未選択");
     return;
   }
   if (!Number.isInteger(quantity) || quantity <= 0) {
-    showToast("数量を正しく入力してください", "warn");
+    debug("数量が不正");
     return;
   }
   if (!Number.isInteger(price) || price <= 0) {
-    showToast("価格を正しく入力してください", "warn");
+    debug("価格が不正");
     return;
   }
   if (resourceAmount(currentProfile, resource) < quantity) {
-    showToast("所持数が足りません", "error");
+    debug("所持数不足");
     return;
   }
 
@@ -636,10 +648,10 @@ async function createListing() {
     await Promise.all([fetchProfile(), fetchMarket(), fetchRanking()]);
     renderProfile();
 
-    showToast(`${RESOURCE_LABELS[resource]}を出品しました`);
+    debug(`${RESOURCE_LABELS[resource]}を出品しました`);
   } catch (error) {
     console.error(error);
-    showToast(error.message || "出品に失敗しました", "error");
+    debug("出品失敗: " + (error.message || error));
   }
 }
 
@@ -673,10 +685,10 @@ async function cancelMarketItem(id) {
 
     await Promise.all([fetchProfile(), fetchMarket(), fetchRanking()]);
     renderProfile();
-    showToast("出品を取り消しました");
+    debug("出品を取り消しました");
   } catch (error) {
     console.error(error);
-    showToast(error.message || "取り消しに失敗しました", "error");
+    debug("取り消し失敗: " + (error.message || error));
   }
 }
 
@@ -693,10 +705,10 @@ async function buyMarketItem(listingId) {
 
     await Promise.all([fetchProfile(), fetchMarket(), fetchRanking(), fetchHistory()]);
     renderProfile();
-    showToast(`${RESOURCE_LABELS[data.resource]}を購入しました`);
+    debug(`${RESOURCE_LABELS[data.resource]}を購入しました`);
   } catch (error) {
     console.error(error);
-    showToast(error.message || "購入に失敗しました", "error");
+    debug("購入失敗: " + (error.message || error));
   }
 }
 
@@ -705,13 +717,13 @@ async function buyNpcResource(resource, qtyInputId) {
 
   const qty = Number($(qtyInputId)?.value);
   if (!Number.isInteger(qty) || qty <= 0) {
-    showToast("数量を正しく入力してください", "warn");
+    debug("数量が不正");
     return;
   }
 
   const total = NPC_PRICES[resource] * qty;
   if (Number(currentProfile.money) < total) {
-    showToast("お金が足りません", "error");
+    debug("お金が足りません");
     return;
   }
 
@@ -744,10 +756,10 @@ async function buyNpcResource(resource, qtyInputId) {
 
     await Promise.all([fetchProfile(), fetchRanking(), fetchHistory()]);
     renderProfile();
-    showToast(`${RESOURCE_LABELS[resource]}を${qty}個購入しました`);
+    debug(`${RESOURCE_LABELS[resource]}を${qty}個購入しました`);
   } catch (error) {
     console.error(error);
-    showToast(error.message || "NPC購入に失敗しました", "error");
+    debug("NPC購入失敗: " + (error.message || error));
   }
 }
 
@@ -764,10 +776,10 @@ async function updateMarketPrices() {
     await fetchPrices();
     await fetchRanking();
     renderPrices();
-    showToast("相場を更新しました");
+    debug("相場を更新しました");
   } catch (error) {
     console.error(error);
-    showToast(error.message || "相場更新に失敗しました", "error");
+    debug("相場更新失敗: " + (error.message || error));
   }
 }
 
@@ -776,15 +788,15 @@ async function sendChat() {
 
   const message = $("chatInput")?.value.trim();
   if (!message) {
-    showToast("メッセージを入力してください", "warn");
+    debug("メッセージ未入力");
     return;
   }
   if (message.length > 200) {
-    showToast("200文字以内にしてください", "warn");
+    debug("200文字以内にしてください");
     return;
   }
   if (currentProfile.is_chat_banned) {
-    showToast("チャットBAN中です", "error");
+    debug("チャットBAN中");
     return;
   }
 
@@ -801,9 +813,10 @@ async function sendChat() {
 
     $("chatInput").value = "";
     await fetchChat();
+    debug("チャット送信成功");
   } catch (error) {
     console.error(error);
-    showToast(error.message || "送信に失敗しました", "error");
+    debug("送信失敗: " + (error.message || error));
   }
 }
 
@@ -822,10 +835,10 @@ async function deleteChatMessage(chatId) {
     if (error) throw error;
 
     await fetchChat();
-    showToast("メッセージを削除しました");
+    debug("メッセージを削除しました");
   } catch (error) {
     console.error(error);
-    showToast(error.message || "削除に失敗しました", "error");
+    debug("削除失敗: " + (error.message || error));
   }
 }
 
@@ -841,10 +854,10 @@ async function setBanState(userId, mode) {
     if (error) throw error;
 
     await Promise.all([fetchChat(), fetchBanList()]);
-    showToast(mode === "chat" ? "チャットBANしました" : "ゲームBANしました");
+    debug(mode === "chat" ? "チャットBANしました" : "ゲームBANしました");
   } catch (error) {
     console.error(error);
-    showToast(error.message || "BANに失敗しました", "error");
+    debug("BAN失敗: " + (error.message || error));
   }
 }
 
@@ -853,7 +866,7 @@ async function unban(mode) {
 
   const targetUserId = $("banTargetUserId")?.value.trim();
   if (!targetUserId) {
-    showToast("user_id を入力してください", "warn");
+    debug("user_id未入力");
     return;
   }
 
@@ -866,10 +879,10 @@ async function unban(mode) {
     if (error) throw error;
 
     await Promise.all([fetchBanList(), fetchChat()]);
-    showToast(mode === "chat" ? "チャットBAN解除しました" : "ゲームBAN解除しました");
+    debug(mode === "chat" ? "チャットBAN解除しました" : "ゲームBAN解除しました");
   } catch (error) {
     console.error(error);
-    showToast(error.message || "BAN解除に失敗しました", "error");
+    debug("BAN解除失敗: " + (error.message || error));
   }
 }
 
@@ -904,16 +917,20 @@ function bindEvents() {
 async function bootstrap() {
   bindEvents();
   resetState();
+  debug("bootstrap開始");
 
   const { data, error } = await supabase.auth.getSession();
 
   if (error) {
     console.error(error);
+    debug("getSession失敗: " + error.message);
     resetState();
     return;
   }
 
   const session = data.session;
+  debug(session?.user ? "sessionあり" : "sessionなし");
+
   if (!session?.user) {
     resetState();
     return;
@@ -922,34 +939,37 @@ async function bootstrap() {
   currentUser = session.user;
 
   try {
+    debug("自動ログイン refreshAll前");
     await refreshAll();
+    debug("自動ログイン refreshAll成功");
     toggleApp(true);
   } catch (err) {
     console.error(err);
     await supabase.auth.signOut();
     resetState();
-    setMessage(err.message || "読み込みに失敗しました");
-    showToast(err.message || "読み込みに失敗しました", "error");
+    debug("自動ログイン失敗: " + (err.message || err));
   }
 }
 
 supabase.auth.onAuthStateChange(async (_event, session) => {
   if (!session?.user) {
     resetState();
+    debug("auth state: sessionなし");
     return;
   }
 
   currentUser = session.user;
 
   try {
+    debug("auth state refreshAll前");
     await refreshAll();
+    debug("auth state refreshAll成功");
     toggleApp(true);
   } catch (err) {
     console.error(err);
     await supabase.auth.signOut();
     resetState();
-    setMessage(err.message || "読み込みに失敗しました");
-    showToast(err.message || "読み込みに失敗しました", "error");
+    debug("auth state失敗: " + (err.message || err));
   }
 });
 
