@@ -27,7 +27,7 @@
         <input id="password" type="password" placeholder="パスワード" />
       </div>
 
-      <div class="row" style="margin-top: 14px;">
+      <div class="row mt14">
         <button id="signupBtn">登録</button>
         <button id="loginBtn">ログイン</button>
       </div>
@@ -66,26 +66,11 @@
         </div>
 
         <div class="resourceIcons">
-          <div class="resourceCard">
-            <img src="wood.png" alt="木" />
-            <span>木</span>
-          </div>
-          <div class="resourceCard">
-            <img src="stone.png" alt="石" />
-            <span>石</span>
-          </div>
-          <div class="resourceCard">
-            <img src="iron.png" alt="鉄" />
-            <span>鉄</span>
-          </div>
-          <div class="resourceCard">
-            <img src="gold.png" alt="金" />
-            <span>金</span>
-          </div>
-          <div class="resourceCard">
-            <img src="diamond.png" alt="ダイヤ" />
-            <span>ダイヤ</span>
-          </div>
+          <div class="resourceCard"><img src="wood.png" alt="木" /><span>木</span></div>
+          <div class="resourceCard"><img src="stone.png" alt="石" /><span>石</span></div>
+          <div class="resourceCard"><img src="iron.png" alt="鉄" /><span>鉄</span></div>
+          <div class="resourceCard"><img src="gold.png" alt="金" /><span>金</span></div>
+          <div class="resourceCard"><img src="diamond.png" alt="ダイヤ" /><span>ダイヤ</span></div>
         </div>
       </section>
 
@@ -94,27 +79,22 @@
           <h3>所持金</h3>
           <p class="bigNumber">💰 <span id="moneyText">0</span></p>
         </div>
-
         <div class="card statCard">
           <h3>木</h3>
           <p class="bigNumber"><span id="woodText">0</span></p>
         </div>
-
         <div class="card statCard">
           <h3>石</h3>
           <p class="bigNumber"><span id="stoneText">0</span></p>
         </div>
-
         <div class="card statCard">
           <h3>鉄</h3>
           <p class="bigNumber"><span id="ironText">0</span></p>
         </div>
-
         <div class="card statCard">
           <h3>金</h3>
           <p class="bigNumber"><span id="goldText">0</span></p>
         </div>
-
         <div class="card statCard">
           <h3>ダイヤ</h3>
           <p class="bigNumber"><span id="diamondText">0</span></p>
@@ -126,12 +106,8 @@
           <div class="sectionHeader">
             <div>
               <h3>採取</h3>
-              <p class="subText">
-                今日の採取回数: <span id="gatherCountText">0 / 20</span>
-              </p>
-              <p class="subText">
-                1日の上限: <span id="dailyLimitText">20</span>
-              </p>
+              <p class="subText">今日の採取回数: <span id="gatherCountText">0 / 20</span></p>
+              <p class="subText">1日の上限: <span id="dailyLimitText">20</span></p>
             </div>
             <button id="gatherBtn">採取する</button>
           </div>
@@ -191,25 +167,21 @@
               <input id="npcWoodQty" type="number" min="1" value="1" />
               <button id="buyWoodNpcBtn">木を買う</button>
             </div>
-
             <div class="npcRow">
               <span>石</span>
               <input id="npcStoneQty" type="number" min="1" value="1" />
               <button id="buyStoneNpcBtn">石を買う</button>
             </div>
-
             <div class="npcRow">
               <span>鉄</span>
               <input id="npcIronQty" type="number" min="1" value="1" />
               <button id="buyIronNpcBtn">鉄を買う</button>
             </div>
-
             <div class="npcRow">
               <span>金</span>
               <input id="npcGoldQty" type="number" min="1" value="1" />
               <button id="buyGoldNpcBtn">金を買う</button>
             </div>
-
             <div class="npcRow">
               <span>ダイヤ</span>
               <input id="npcDiamondQty" type="number" min="1" value="1" />
