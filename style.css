@@ -126,6 +126,10 @@ select:focus {
   background: rgba(255, 255, 255, 0.11);
 }
 
+.mt14 {
+  margin-top: 14px;
+}
+
 .container {
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
