@@ -487,17 +487,36 @@ async function login() {
   const password = $("password")?.value;
 
   if (!email || !password) {
-    showToast("メールとパスワードを入力してください", "warn");
+    alert("メールとパスワードを入力してください");
+    setMessage("メールとパスワードを入力してください");
     return;
   }
+
+  setMessage("ログイン中...");
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    showToast(error.message, "error");
-    setMessage(error.message);
+    alert("ログイン失敗: " + error.message);
+    setMessage("ログイン失敗: " + error.message);
     return;
   }
+
+  currentUser = data.user;
+
+  // まずは画面だけ強制で開く
+  toggleApp(true);
+  setMessage("ログイン成功");
+
+  try {
+    await refreshAll();
+    setMessage("ログイン成功 / 読み込み成功");
+  } catch (err) {
+    console.error(err);
+    alert("ログイン後エラー: " + (err.message || err));
+    setMessage("ログイン後エラー: " + (err.message || err));
+  }
+}
 
   currentUser = data.user;
 
